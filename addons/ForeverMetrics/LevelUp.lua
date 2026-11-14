@@ -641,6 +641,62 @@ function FM:ReplayLevelUp()
   show(data)
 end
 
+---------------------------------------------------------------------------
+-- Blizzard's own level-up banner ("You've Reached Level N"). Ours either
+-- waits for it to finish, or (option) it's closed so ours shows right away.
+---------------------------------------------------------------------------
+
+local BLIZZ_BANNERS = { "LevelUpDisplay", "EventToastManagerFrame" }
+local dingAt = 0
+
+local function blizzBannerShowing()
+  for _, name in ipairs(BLIZZ_BANNERS) do
+    local f = _G[name]
+    if f and f.IsShown and f:IsShown() then return true end
+  end
+  return false
+end
+
+local function closeBlizzBanner(f)
+  if f.CloseActiveToasts then pcall(f.CloseActiveToasts, f) end -- modern toast manager
+  pcall(f.Hide, f)
+end
+
+-- Only touch Blizzard's banner right after a ding, so its other toasts still work
+local bannerHooked = false
+local function hookBlizzBanner()
+  if bannerHooked then return end
+  bannerHooked = true
+  for _, name in ipairs(BLIZZ_BANNERS) do
+    local f = _G[name]
+    if f and f.HookScript then
+      f:HookScript("OnShow", function(self)
+        if FM:GetSetting("hideBlizzLevelUp") and GetTime() - dingAt < 8 then closeBlizzBanner(self) end
+      end)
+    end
+  end
+end
+
+-- Show ours once Blizzard's banner is gone (gives up waiting after 8 seconds)
+local function showAfterBanner(data)
+  local waited = 0
+  local function try()
+    if FM:GetSetting("hideBlizzLevelUp") then
+      for _, name in ipairs(BLIZZ_BANNERS) do
+        local f = _G[name]
+        if f and f.IsShown and f:IsShown() then closeBlizzBanner(f) end
+      end
+    end
+    if blizzBannerShowing() and waited < 8 then
+      waited = waited + 0.5
+      C_Timer.After(0.5, try)
+      return
+    end
+    show(data)
+  end
+  try()
+end
+
 local function celebrate(data)
   remember(data)
   if not FM:GetSetting("levelModal") then return end
@@ -648,7 +704,7 @@ local function celebrate(data)
     pending = data -- wait until the fight is over
     return
   end
-  show(data)
+  showAfterBanner(data)
 end
 
 ---------------------------------------------------------------------------
@@ -663,6 +719,7 @@ local lastDing -- { level, t }
 function H.PLAYER_LOGIN()
   snapshotStats()
   queueBookScan()
+  pcall(hookBlizzBanner)
 end
 
 function H.SPELLS_CHANGED() queueBookScan() end
@@ -693,6 +750,8 @@ function H.LEARNED_SPELL_IN_TAB(id) onLearned(id) end        -- classic clients
 function H.PLAYER_LEVEL_UP(level, hp, mp, talents)
   level = tonumber(level) or UnitLevel("player")
   lastDing = { level = level, t = GetTime() }
+  dingAt = GetTime()
+  pcall(hookBlizzBanner)
   local c = FM:Char()
   -- Core records how long the previous level took (it runs on the same event)
   C_Timer.After(0.5, function()
@@ -724,7 +783,7 @@ function H.PLAYER_REGEN_ENABLED()
   if pending then
     local data = pending
     pending = nil
-    C_Timer.After(1, function() show(data) end)
+    C_Timer.After(1, function() showAfterBanner(data) end)
   end
 end
 

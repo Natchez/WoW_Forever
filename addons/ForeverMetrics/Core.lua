@@ -181,6 +181,7 @@ FM.SETTINGS = {
   { group = "pill",    key = "hideXPBar",      label = "Hide Blizzard's XP bar",                default = false },
   { group = "feed",    key = "feed",           label = "Show activity feed",                    default = true },
   { group = "levelup", key = "levelModal",     label = "Celebrate level-ups with a pop-up",     default = true },
+  { group = "levelup", key = "hideBlizzLevelUp", label = "Hide Blizzard's level-up banner (otherwise ours waits for it)", default = false },
   { group = "levelup", key = "levelSkills",    label = "List new skills to train",              default = true },
   -- Rows with `action` are buttons: clicking runs FM:<action>() instead of toggling
   { group = "levelup", key = "replayLevelUp",  label = "Replay your last level-up",             action = "ReplayLevelUp", button = "Replay" },

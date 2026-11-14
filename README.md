@@ -1,2 +1,35 @@
 # WoW_Forever
-Rep for our wow forever addons 
+
+Our addons for World of Warcraft: Forever.
+
+## Addons
+
+| Addon | Version | What it does |
+|---|---|---|
+| [ForeverMetrics](addons/ForeverMetrics) | 0.10.1 | Stats, activity feed, loot luck, XP pill, level-up pop-up and duo mode. Type `/fm` in game. See its [README](addons/ForeverMetrics/README.md). |
+
+## Layout
+
+```
+addons/
+  ForeverMetrics/        one folder per addon, exactly as it goes in Interface\AddOns
+    ForeverMetrics.toc   the .toc name must match the folder name
+    ...
+tools/
+  package.py             builds dist/<Addon>-<version>.zip
+dist/                    built zips (not committed)
+```
+
+To add another addon, make a new folder under `addons/` with a matching `.toc` inside.
+
+## Installing
+
+1. Get the zip: download it from our download page, or build it with `python tools/package.py`.
+2. Close WoW, then unzip into your game's `Interface\AddOns` folder. You should end up with `AddOns\ForeverMetrics\ForeverMetrics.toc`, not a folder inside a folder.
+3. When updating, replace the old addon folder. Saved stats live in the `WTF` folder and are kept.
+
+## Releasing an update
+
+1. Change the code under `addons/<Addon>/`.
+2. Bump `## Version:` in the `.toc`, and the version in the addon's README and the table above.
+3. Run `python tools/package.py <Addon>` and share the zip from `dist/`.

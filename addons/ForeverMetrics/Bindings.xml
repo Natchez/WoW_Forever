@@ -1,0 +1,11 @@
+<Bindings>
+  <Binding name="FOREVERMETRICS_TOGGLE" header="FOREVERMETRICS" category="ADDONS">
+    ForeverMetrics:ToggleUI()
+  </Binding>
+  <Binding name="FOREVERMETRICS_SESSION" category="ADDONS">
+    ForeverMetrics:PrintSession()
+  </Binding>
+  <Binding name="FOREVERMETRICS_PILL" category="ADDONS">
+    ForeverMetrics:TogglePillExpanded()
+  </Binding>
+</Bindings>

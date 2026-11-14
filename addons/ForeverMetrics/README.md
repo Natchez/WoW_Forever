@@ -1,4 +1,4 @@
-# Forever Metrics (v0.11.1)
+# Forever Metrics (v0.11.2)
 
 A RuneMetrics-style tracker for World of Warcraft: Forever. It keeps an activity feed and stats for every character, and you can swap between characters or view totals for your whole account.
 
@@ -76,12 +76,12 @@ Play with someone else who runs Forever Metrics and the two addons link up.
 ## Level-up celebration (new in v0.7.0)
 When you ding, a pop-up shows your new level, how long the last level took, your stat gains, any new talent point, and the class skills that just unlocked at your trainer, with their costs and your gold.
 
-- **New skills:** the list comes from your class trainer. Visit your trainer once and it remembers the full list, including skills you're too low for. After that, every level-up shows what's new. This keeps it accurate to Forever, with no hard-coded spell lists.
+- **New skills:** the list comes from three places: your class trainer (visit it once and it remembers the full list, including skills you're too low for), your spellbook (every spell it lists with the level it's learned at), and any spell you learn right around the ding. Each skill shows **learned**, its training cost, or **at trainer**. This keeps it accurate to Forever, with no hard-coded spell lists.
 - **In combat:** if you level up mid-fight, the pop-up waits until combat ends.
 - **Closing it:** click "Nice!", or press Esc, A, or B. It also fades out on its own after 30 seconds, and you can drag it to move it.
 - **Replay:** to see your last level-up again, click **Replay** on the Home dashboard or under Options > Interface > Level Up, or type `/fm levelup last`. Each character remembers its own last ding, even when the pop-up is turned off. If nothing is saved yet, it rebuilds the pop-up for your current level, without stat gains.
 - **Skill tooltips (v0.11.0):** each new skill shows its icon, and hovering it shows the spell's tooltip. Skills saved before v0.11.0 show a short summary until you visit your trainer again. The pop-up stays open while your mouse is over it.
-- **Checking the skill list:** `/fm levelup trainer` says how many trainer skills are saved and lists what unlocks at your current level and the next two. With `/fm debug` on, opening your trainer prints what was read.
+- **Checking the skill list:** `/fm levelup check` shows what each source can see and lists the skills for your current level and the next two. If reading the trainer fails, a chat message says so once.
 - `/fm levelup test` previews it, and `/fm levelup` turns it on or off.
 
 ## Combat text (new in v0.10.0)

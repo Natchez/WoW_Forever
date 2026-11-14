@@ -126,6 +126,7 @@ local function spellIcon(id)
 end
 
 local scanning = false
+local scanProblemShown = false
 
 local function scanTrainer()
   if scanning then return end
@@ -180,6 +181,10 @@ local function scanTrainer()
   if FM.debug then
     say(("trainer scan: %d entries, %d skills saved, %d with no level found."):format(total, found, noLevel))
   end
+  if found == 0 and total > 0 and not scanProblemShown then
+    scanProblemShown = true
+    say(("couldn't read the skill levels from this trainer (%d entries). Type |cffffff00/fm levelup check|r and send Claude what it prints."):format(total))
+  end
   if found > 0 then
     local first = not T.scanned
     T.scanned = time()
@@ -189,28 +194,177 @@ end
 
 -- The list can still be filling in when the trainer opens, and changing the
 -- filters refreshes it, so scan again shortly after any update.
+local function safeScan()
+  local ok, err = pcall(scanTrainer)
+  scanning = false -- an error mid-scan must not block every later scan
+  if not ok then
+    FM.lastTrainerError = tostring(err)
+    if FM.debug or not scanProblemShown then
+      scanProblemShown = true
+      print("|cffff5555ForeverMetrics|r couldn't read your trainer:", err, " (/fm levelup check for details)")
+    end
+  end
+end
+
 local rescanQueued = false
 local function queueScan()
-  if scanning or rescanQueued then return end
+  if rescanQueued then return end
   rescanQueued = true
   C_Timer.After(0.5, function()
     rescanQueued = false
-    local ok, err = pcall(scanTrainer)
-    scanning = false
-    if not ok and FM.debug then print("|cffff5555ForeverMetrics trainer scan error|r", err) end
+    if not scanning then safeScan() end
   end)
 end
 
-local function skillsAt(level)
-  local list, cost = {}, 0
-  for _, s in pairs(trainerDB().spells) do
-    if s.lv == level then
-      list[#list + 1] = s
-      cost = cost + (s.cost or 0)
+---------------------------------------------------------------------------
+-- Spellbook: spells you know, plus "future" spells where the client lists
+-- them, each with the level it's learned at. Saved per class so the list
+-- builds up over time. Catches skills the trainer scan misses, and games
+-- that teach skills automatically.
+---------------------------------------------------------------------------
+
+local function learnLevel(id)
+  local f = (C_Spell and C_Spell.GetSpellLevelLearned) or GetSpellLevelLearned
+  if not f then return nil end
+  local ok, lv = pcall(f, id)
+  lv = ok and tonumber(safe(lv)) or nil
+  if lv and lv > 0 then return lv end
+end
+
+local function isKnown(id)
+  if not id then return false end
+  if IsPlayerSpell then
+    local ok, v = pcall(IsPlayerSpell, id)
+    if ok and safe(v) then return true end
+  end
+  if IsSpellKnown then
+    local ok, v = pcall(IsSpellKnown, id)
+    if ok and safe(v) then return true end
+  end
+  return false
+end
+
+local function spellName(id)
+  if C_Spell and C_Spell.GetSpellInfo then
+    local ok, info = pcall(C_Spell.GetSpellInfo, id)
+    if ok and type(info) == "table" then return safe(info.name), safe(info.iconID) end
+  end
+  if GetSpellInfo then
+    local name, _, icon = GetSpellInfo(id)
+    return safe(name), safe(icon)
+  end
+end
+
+local function bookDB()
+  local T = trainerDB()
+  T.book = T.book or {}
+  return T.book
+end
+
+-- Calls fn(spellID, name, rank, icon, isFuture) for every spellbook spell
+local function eachBookSpell(fn)
+  if C_SpellBook and C_SpellBook.GetNumSpellBookSkillLines and C_SpellBook.GetSpellBookItemInfo
+     and Enum and Enum.SpellBookSpellBank then
+    local FUTURE = Enum.SpellBookItemType and Enum.SpellBookItemType.FutureSpell
+    local SPELL = Enum.SpellBookItemType and Enum.SpellBookItemType.Spell
+    for line = 1, C_SpellBook.GetNumSpellBookSkillLines() or 0 do
+      local L = C_SpellBook.GetSpellBookSkillLineInfo(line)
+      if L and not L.shouldHide and L.itemIndexOffset and L.numSpellBookItems then
+        for i = L.itemIndexOffset + 1, L.itemIndexOffset + L.numSpellBookItems do
+          local it = C_SpellBook.GetSpellBookItemInfo(i, Enum.SpellBookSpellBank.Player)
+          if it and (it.itemType == SPELL or it.itemType == FUTURE) then
+            local id = safe(it.spellID) or safe(it.actionID)
+            if id then fn(id, safe(it.name), safe(it.subName), safe(it.iconID), it.itemType == FUTURE) end
+          end
+        end
+      end
     end
+    return "modern"
+  end
+  if GetNumSpellTabs and GetSpellTabInfo and GetSpellBookItemInfo then
+    local BOOK = BOOKTYPE_SPELL or "spell"
+    for tab = 1, GetNumSpellTabs() do
+      local _, _, offset, num = GetSpellTabInfo(tab)
+      for i = (offset or 0) + 1, (offset or 0) + (num or 0) do
+        local kind, id = GetSpellBookItemInfo(i, BOOK)
+        id = safe(id)
+        if id and (kind == "SPELL" or kind == "FUTURESPELL") then
+          local name, rank = GetSpellBookItemName(i, BOOK)
+          local icon = GetSpellBookItemTexture and GetSpellBookItemTexture(i, BOOK)
+          fn(id, safe(name), safe(rank), safe(icon), kind == "FUTURESPELL")
+        end
+      end
+    end
+    return "classic"
+  end
+  return "none"
+end
+
+local bookStats = { api = "?", seen = 0, withLevel = 0, future = 0 }
+
+local function scanBook()
+  local B = bookDB()
+  local seen, withLevel, future = 0, 0, 0
+  bookStats.api = eachBookSpell(function(id, name, rank, icon, isFuture)
+    seen = seen + 1
+    if isFuture then future = future + 1 end
+    local lv = learnLevel(id)
+    if lv and name then
+      withLevel = withLevel + 1
+      B[id] = { n = name, r = (rank and rank ~= "") and rank or nil, lv = lv, id = id, icon = icon }
+    end
+  end)
+  bookStats.seen, bookStats.withLevel, bookStats.future = seen, withLevel, future
+end
+
+local bookQueued = false
+local function queueBookScan()
+  if bookQueued then return end
+  bookQueued = true
+  C_Timer.After(1, function()
+    bookQueued = false
+    local ok, err = pcall(scanBook)
+    if not ok and FM.debug then print("|cffff5555ForeverMetrics spellbook scan error|r", err) end
+  end)
+end
+
+-- Spells learned in the last little while (auto-learned at a ding, or trained)
+local recentLearned = {}
+
+-- Everything known about skills for one level, from all sources, without
+-- duplicates. Each entry: n, r, id, icon, lv, cost (trainer only), known.
+local function skillsAt(level, extra)
+  local list, cost, byKey = {}, 0, {}
+  local function keyOf(sk) return sk.id and ("id" .. sk.id) or (sk.n .. "|" .. (sk.r or "")) end
+  local function add(sk, fromTrainer)
+    local k, k2 = keyOf(sk), sk.n .. "|" .. (sk.r or "")
+    local cur = byKey[k] or byKey[k2]
+    if cur then
+      -- fill in whatever the other source knew
+      cur.id = cur.id or sk.id
+      cur.icon = cur.icon or sk.icon
+      if fromTrainer then cur.cost = sk.cost end
+      return
+    end
+    local e = { n = sk.n, r = sk.r, id = sk.id, icon = sk.icon, lv = sk.lv,
+                cost = fromTrainer and sk.cost or nil, fromTrainer = fromTrainer }
+    list[#list + 1] = e
+    byKey[k], byKey[k2] = e, e
+  end
+  for _, sk in pairs(trainerDB().spells) do if sk.lv == level then add(sk, true) end end
+  for _, sk in pairs(bookDB()) do if sk.lv == level then add(sk, false) end end
+  for _, sk in ipairs(extra or {}) do add(sk, false) end
+  for _, e in ipairs(list) do
+    e.known = isKnown(e.id)
+    if not e.known and e.cost then cost = cost + e.cost end
   end
   table.sort(list, function(a, b) return a.n < b.n end)
   return list, cost
+end
+
+-- Whether any source has data yet (otherwise the pop-up shows a hint)
+local function haveSkillData()
+  return trainerDB().scanned or next(bookDB()) ~= nil
 end
 
 -- Tooltip for a skill row. With a spell ID it's the game's own spell
@@ -357,8 +511,9 @@ local function animate(self, elapsed)
   self.burst:SetAlpha(math.max(0.15, 0.85 - t * 0.25))
 end
 
-local function show(data)
+local function show(data, keepAnim)
   if not modal then build() end
+  modal.data = data
   modal.title:SetText(("Level %d!"):format(data.level))
   modal.sub:SetText(data.took and ("Level %d took %s"):format(data.level - 1, dur(data.took)) or "Ding!")
 
@@ -389,32 +544,40 @@ local function show(data)
     modal.skillsHdr:SetPoint("TOPLEFT", 22, y)
     modal.skillsHdr:Show()
     y = y - 20
-    if not trainerDB().scanned then
+    if #data.skills == 0 and not haveSkillData() then
       modal.skillsHdr:SetText("New skills")
       modal.foot:SetText("|cffa8977aVisit your class trainer once, and future level-ups will list the skills you just unlocked.|r")
       modal.foot:ClearAllPoints(); modal.foot:SetPoint("TOPLEFT", 22, y); modal.foot:Show()
       y = y - modal.foot:GetStringHeight() - 6
     elseif #data.skills == 0 then
       modal.skillsHdr:SetText("New skills")
-      modal.foot:SetText("|cffa8977aNothing new at the trainer this level.|r")
+      modal.foot:SetText("|cffa8977aNothing new this level.|r")
       modal.foot:ClearAllPoints(); modal.foot:SetPoint("TOPLEFT", 22, y); modal.foot:Show()
       y = y - modal.foot:GetStringHeight() - 6
     else
-      modal.skillsHdr:SetText(("New at your trainer (%d)"):format(#data.skills))
+      modal.skillsHdr:SetText(("New this level (%d)"):format(#data.skills))
       for i, s in ipairs(data.skills) do
         local r = modal.rows[i]
         if not r then break end
         r.skill = s
         r.icon:SetTexture(s.icon or spellIcon(s.id) or "Interface\\Icons\\INV_Misc_QuestionMark")
         r.name:SetText(s.r and ("%s |cffa8977a(%s)|r"):format(s.n, s.r) or s.n)
-        r.cost:SetText((s.cost or 0) > 0 and money(s.cost) or "|cff7fd36bfree|r")
+        if s.known then
+          r.cost:SetText("|cff7fd36blearned|r")
+        elseif s.cost then
+          r.cost:SetText(s.cost > 0 and money(s.cost) or "|cff7fd36bfree|r")
+        else
+          r.cost:SetText("|cffa8977aat trainer|r")
+        end
         r:ClearAllPoints(); r:SetPoint("TOPLEFT", 22, y); r:Show()
         y = y - 22
       end
       local extra = #data.skills - MAX_SKILLS
-      local afford = GetMoney() >= data.cost
-      local foot = ("Total %s  ·  you have %s"):format(money(data.cost), money(GetMoney()))
-      if not afford then foot = foot .. "  |cffff6b6b(short)|r" end
+      local foot = ""
+      if (data.cost or 0) > 0 then
+        foot = ("Total %s  ·  you have %s"):format(money(data.cost), money(GetMoney()))
+        if GetMoney() < data.cost then foot = foot .. "  |cffff6b6b(short)|r" end
+      end
       if extra > 0 then foot = ("|cffa8977a+%d more|r   "):format(extra) .. foot end
       modal.foot:SetText(foot)
       modal.foot:ClearAllPoints(); modal.foot:SetPoint("TOPLEFT", 22, y - 4); modal.foot:Show()
@@ -423,6 +586,7 @@ local function show(data)
   end
 
   modal:SetHeight(-y + 50)
+  if keepAnim and modal:IsShown() then return end -- just refreshed the content
   modal.age = 0
   modal:SetScale(0.75); modal:SetAlpha(0)
   modal:Show()
@@ -437,7 +601,7 @@ local function remember(data)
   for k, v in pairs(data) do copy[k] = v end
   copy.skills = {}
   for i, s in ipairs(data.skills or {}) do
-    copy.skills[i] = { n = s.n, r = s.r, lv = s.lv, icon = s.icon, cost = s.cost, id = s.id }
+    copy.skills[i] = { n = s.n, r = s.r, lv = s.lv, icon = s.icon, cost = s.cost, id = s.id, known = s.known }
   end
   copy.t = time()
   c.lastLevelUp = copy
@@ -477,12 +641,41 @@ end
 local ev = CreateFrame("Frame")
 local H = {}
 
+local lastDing -- { level, t }
+
 function H.PLAYER_LOGIN()
   snapshotStats()
+  queueBookScan()
 end
+
+function H.SPELLS_CHANGED() queueBookScan() end
+
+-- A spell was learned. Shortly after a ding, add it to the pop-up.
+local function onLearned(id)
+  id = tonumber(safe(id))
+  if not id then return end
+  local name, icon = spellName(id)
+  if not name then return end
+  local lv = learnLevel(id)
+  local sk = { n = name, id = id, icon = icon, lv = lv or UnitLevel("player") }
+  recentLearned[#recentLearned + 1] = { sk = sk, t = GetTime() }
+  while #recentLearned > 20 do table.remove(recentLearned, 1) end
+  if lv then bookDB()[id] = { n = name, lv = lv, id = id, icon = icon } end
+
+  if lastDing and GetTime() - lastDing.t < 20 and modal and modal.data and modal.data.level == lastDing.level then
+    local data = modal.data
+    data.skills, data.cost = skillsAt(data.level, { sk })
+    remember(data)
+    if modal:IsShown() then show(data, true) end
+  end
+end
+
+function H.LEARNED_SPELL_IN_SKILL_LINE(id) onLearned(id) end -- modern clients
+function H.LEARNED_SPELL_IN_TAB(id) onLearned(id) end        -- classic clients
 
 function H.PLAYER_LEVEL_UP(level, hp, mp, talents)
   level = tonumber(level) or UnitLevel("player")
+  lastDing = { level = level, t = GetTime() }
   local c = FM:Char()
   -- Core records how long the previous level took (it runs on the same event)
   C_Timer.After(0.5, function()
@@ -492,7 +685,13 @@ function H.PLAYER_LEVEL_UP(level, hp, mp, talents)
       stats[i] = (now and baseStats[i]) and (now - baseStats[i]) or 0
     end
     snapshotStats()
-    local skills, cost = skillsAt(level)
+    pcall(scanBook)
+    -- include anything learned in the moments around the ding
+    local extra = {}
+    for _, r in ipairs(recentLearned) do
+      if GetTime() - r.t < 5 then extra[#extra + 1] = r.sk end
+    end
+    local skills, cost = skillsAt(level, extra)
     local _, powerToken = UnitPowerType("player")
     local powerName = powerToken and _G[powerToken] or nil
     if type(powerName) ~= "string" then powerName = nil end
@@ -512,7 +711,10 @@ function H.PLAYER_REGEN_ENABLED()
   end
 end
 
-function H.TRAINER_SHOW() scanTrainer(); queueScan() end
+function H.TRAINER_SHOW()
+  FM.trainerSeen = (FM.trainerSeen or 0) + 1
+  safeScan(); queueScan()
+end
 function H.TRAINER_UPDATE() queueScan() end
 
 ev:SetScript("OnEvent", function(_, event, ...)
@@ -528,26 +730,39 @@ for event in pairs(H) do pcall(ev.RegisterEvent, ev, event) end
 function FM:LevelUpCommand(rest)
   if rest == "last" or rest == "replay" then
     FM:ReplayLevelUp()
-  elseif rest == "trainer" then
-    -- What the trainer cache holds, to check the skill list is working
+  elseif rest == "check" or rest == "trainer" then
+    -- What each skill source can see. Send this to Claude if skills don't show.
+    pcall(scanBook)
     local T = trainerDB()
     local n, withId = 0, 0
     for _, sp in pairs(T.spells) do
       n = n + 1
       if sp.id then withId = withId + 1 end
     end
-    if not T.scanned then
-      say("no trainer skills saved for this class yet. Open your class trainer once.")
-    else
-      say(("%d trainer skills saved (%d can show a tooltip), last read %s."):format(n, withId, date("%m/%d %H:%M", T.scanned)))
-      local lvl = UnitLevel("player")
-      for _, L in ipairs({ lvl, lvl + 1, lvl + 2 }) do
-        local list = skillsAt(L)
-        local names = {}
-        for _, sp in ipairs(list) do names[#names + 1] = sp.r and (sp.n .. " (" .. sp.r .. ")") or sp.n end
-        print(("  Level %d: %s"):format(L, #names > 0 and table.concat(names, ", ") or "nothing new"))
+    local bookN = 0
+    for _ in pairs(bookDB()) do bookN = bookN + 1 end
+    local yes = function(v) return v and "yes" or "no" end
+    say("level-up skills check (v" .. ((C_AddOns and C_AddOns.GetAddOnMetadata or GetAddOnMetadata)(ADDON, "Version") or "?") .. ")")
+    print(("  Trainer: API %s, opened this session %d time(s), %d skills saved (%d with tooltip)%s"):format(
+      yes(GetNumTrainerServices), FM.trainerSeen or 0, n, withId,
+      T.scanned and (", last read " .. date("%m/%d %H:%M", T.scanned)) or ", never read"))
+    print(("    level API %s, tooltip API %s, filters %s, expand %s"):format(
+      yes(GetTrainerServiceLevelReq), yes(C_TooltipInfo and C_TooltipInfo.GetTrainerService),
+      yes(SetTrainerServiceTypeFilter), yes(ExpandTrainerSkillLine)))
+    if FM.lastTrainerError then print("    last error: " .. FM.lastTrainerError) end
+    print(("  Spellbook: %s API, %d spells, %d future, %d with a learn level; %d saved"):format(
+      bookStats.api, bookStats.seen, bookStats.future, bookStats.withLevel, bookN))
+    print(("    learn-level API %s"):format(yes((C_Spell and C_Spell.GetSpellLevelLearned) or GetSpellLevelLearned)))
+    local lvl = UnitLevel("player")
+    for _, L in ipairs({ lvl, lvl + 1, lvl + 2 }) do
+      local list = skillsAt(L)
+      local names = {}
+      for _, sp in ipairs(list) do
+        names[#names + 1] = (sp.r and (sp.n .. " (" .. sp.r .. ")") or sp.n) .. (sp.known and "*" or "")
       end
+      print(("  Level %d: %s"):format(L, #names > 0 and table.concat(names, ", ") or "nothing found"))
     end
+    print("  (* = already learned)")
   elseif rest == "test" then
     local level = UnitLevel("player")
     local skills, cost = skillsAt(level)
@@ -558,6 +773,6 @@ function FM:LevelUpCommand(rest)
     })
   else
     FM:SetSetting("levelModal", not FM:GetSetting("levelModal"))
-    say("level-up pop-up " .. (FM:GetSetting("levelModal") and "on" or "off") .. "  (/fm levelup last replays your last one, /fm levelup test previews, /fm levelup trainer lists saved skills)")
+    say("level-up pop-up " .. (FM:GetSetting("levelModal") and "on" or "off") .. "  (/fm levelup last replays your last one, /fm levelup test previews, /fm levelup check shows what skill data it can see)")
   end
 end

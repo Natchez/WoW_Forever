@@ -1,4 +1,4 @@
-# Forever Metrics (v0.11.2)
+# Forever Metrics (v0.11.3)
 
 A RuneMetrics-style tracker for World of Warcraft: Forever. It keeps an activity feed and stats for every character, and you can swap between characters or view totals for your whole account.
 
@@ -76,7 +76,7 @@ Play with someone else who runs Forever Metrics and the two addons link up.
 ## Level-up celebration (new in v0.7.0)
 When you ding, a pop-up shows your new level, how long the last level took, your stat gains, any new talent point, and the class skills that just unlocked at your trainer, with their costs and your gold.
 
-- **New skills:** the list comes from three places: your class trainer (visit it once and it remembers the full list, including skills you're too low for), your spellbook (every spell it lists with the level it's learned at), and any spell you learn right around the ding. Each skill shows **learned**, its training cost, or **at trainer**. This keeps it accurate to Forever, with no hard-coded spell lists.
+- **New skills:** the list comes from three places: your class trainer (visit it once and it remembers the full list, including skills you're too low for), your spellbook (every spell it lists with the level it's learned at), and any spell you learn right around the ding. Each skill shows **learned**, its training cost, or **at trainer**. On a level with nothing new, it shows the next level that brings new skills, and what they are (v0.11.3). This keeps it accurate to Forever, with no hard-coded spell lists.
 - **In combat:** if you level up mid-fight, the pop-up waits until combat ends.
 - **Closing it:** click "Nice!", or press Esc, A, or B. It also fades out on its own after 30 seconds, and you can drag it to move it.
 - **Replay:** to see your last level-up again, click **Replay** on the Home dashboard or under Options > Interface > Level Up, or type `/fm levelup last`. Each character remembers its own last ding, even when the pop-up is turned off. If nothing is saved yet, it rebuilds the pop-up for your current level, without stat gains.
@@ -90,7 +90,7 @@ Options > **Combat Text** has two tabs.
 **Floating gains** is our own floating text. It rises above your character, one item at a time so nothing overlaps:
 - Money (+1g 20s), items looted with their icon (you choose the quality threshold), reputation (+25 Stormwind), skill-ups (+1 Mining (76)), and optionally XP
 - Quick gains, like several coins or kill XP plus quest XP, combine into one total
-- Spells you cast, with their icon and name (v0.11.0). Damaging spells float above your target's nameplate, next to Blizzard's damage numbers (v0.11.1). That needs enemy nameplates turned on (V by default); without them, spells float with your other gains. Heals and buffs always float with your gains.
+- Spells you cast, with their icon and name (v0.11.0). From v0.11.3 the icon is a real texture, so it still shows when Forever hides the spell from addon code. With `/fm debug` on, chat says when a cast couldn't be shown and why. Damaging spells float above your target's nameplate, next to Blizzard's damage numbers (v0.11.1). That needs enemy nameplates turned on (V by default); without them, spells float with your other gains. Heals and buffs always float with your gains.
 - Optional spell hits on your target, with the spell's icon and the damage, above the target too (v0.11.0, off by default). The game hides which spell did the damage, so this is a best guess: the first hit on your target within a couple of seconds of a harmful cast is shown with that spell. Now and then it may count a partner's hit, and damage-over-time ticks aren't shown.
 - New lines come in at the bottom and push older ones up, with a gap between them. "Space between lines" sets the gap (v0.11.0).
 - Options for text size and for hiding it during combat

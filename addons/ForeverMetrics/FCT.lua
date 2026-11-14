@@ -46,6 +46,14 @@ local function safe(v)
   return v
 end
 
+-- Forever hides some combat values from addon code ("secret values"). Code
+-- can't read or compare them, but the game's own text and texture widgets
+-- can still display them, so spell names and icons are passed straight
+-- through to SetText / SetTexture.
+local function isSecret(v) return issecretvalue and issecretvalue(v) or false end
+-- nil check that never touches a secret value (comparing one can error)
+local function missing(v) return not isSecret(v) and v == nil end
+
 local function say(msg) print("|cffe8c27aForever Metrics|r " .. msg) end
 
 local function cfg()
@@ -85,6 +93,10 @@ local function acquire()
     f.text = f:CreateFontString(nil, "OVERLAY")
     f.text:SetPoint("CENTER")
     f.text:SetShadowOffset(1, -1)
+    -- spell icon, just left of the text
+    f.icon = f:CreateTexture(nil, "OVERLAY")
+    f.icon:SetPoint("RIGHT", f.text, "LEFT", -5, 0)
+    f.icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
   end
   return f
 end
@@ -121,8 +133,18 @@ local function runLane(lane, base, now, step, slide)
   if #lane.queue > 0 and now - lane.lastSpawn >= GAP then
     local item = table.remove(lane.queue, 1)
     local f = acquire()
-    f.text:SetFont(fontFor(FM:GetSetting("fctScale") or 1))
+    local font, size, flags = fontFor(FM:GetSetting("fctScale") or 1)
+    f.text:SetFont(font, size, flags)
     f.text:SetText(item.text)
+    local c = item.color
+    f.text:SetTextColor(c and c[1] or 1, c and c[2] or 1, c and c[3] or 1)
+    if item.icon then
+      f.icon:SetTexture(item.icon)
+      f.icon:SetSize(size + 4, size + 4)
+      f.icon:Show()
+    else
+      f.icon:Hide()
+    end
     f.born, f.slot = now, 0
     f:SetAlpha(0)
     f:Show()
@@ -170,7 +192,8 @@ end
 
 -- lane: "main" (default) or "target". Target text falls back to the main
 -- lane when there's no nameplate to show it on.
-local function push(text, lane)
+-- opts (optional): icon = texture/fileID (may be secret), color = {r, g, b}
+local function push(text, lane, opts)
   if not anchor or not FM:GetSetting("fct") then return end
   if FM:GetSetting("fctCombatHide") and UnitAffectingCombat("player") then return end
   local L = lanes.main
@@ -179,7 +202,7 @@ local function push(text, lane)
     if #L.queue + #L.active == 0 then followTarget() end -- start at the target, not where it was last time
   end
   if #L.queue > 12 then table.remove(L.queue, 1) end -- never let it fall far behind
-  L.queue[#L.queue + 1] = { text = text }
+  L.queue[#L.queue + 1] = { text = text, icon = opts and opts.icon, color = opts and opts.color }
   driver:SetScript("OnUpdate", animate)
 end
 
@@ -267,54 +290,89 @@ local SKIP_CASTS = {
   ["Fishing"] = true, ["Disenchant"] = true, ["Opening"] = true,
 }
 
+-- Name and icon for a spell ID. Values may be secret (see isSecret).
 local function spellInfo(id)
   if C_Spell and C_Spell.GetSpellInfo then
     local ok, info = pcall(C_Spell.GetSpellInfo, id)
-    if ok and type(info) == "table" then return safe(info.name), safe(info.iconID) end
+    if ok and info then return info.name, info.iconID end
   end
-  if GetSpellInfo then
-    local name, _, icon = GetSpellInfo(id)
-    return safe(name), safe(icon)
+  local name, icon
+  if C_Spell and C_Spell.GetSpellName then
+    local ok, v = pcall(C_Spell.GetSpellName, id); if ok then name = v end
   end
+  if C_Spell and C_Spell.GetSpellTexture then
+    local ok, v = pcall(C_Spell.GetSpellTexture, id); if ok then icon = v end
+  end
+  if (missing(name) or missing(icon)) and GetSpellInfo then
+    local ok, n, _, i = pcall(GetSpellInfo, id)
+    if ok then
+      if missing(name) then name = n end
+      if missing(icon) then icon = i end
+    end
+  end
+  return name, icon
 end
 
-local function isHarmful(id, name)
+-- true / false, or nil when it can't be told
+local function isHarmful(id)
+  if isSecret(id) then return nil end
   if C_Spell and C_Spell.IsSpellHarmful then
     local ok, v = pcall(C_Spell.IsSpellHarmful, id)
-    if ok and v ~= nil then return safe(v) and true or false end
+    if ok and v ~= nil and not isSecret(v) then return v and true or false end
   end
-  if IsHarmfulSpell and name then
+  local name = select(1, spellInfo(id))
+  if IsHarmfulSpell and not isSecret(name) and name then
     local ok, v = pcall(IsHarmfulSpell, name)
-    if ok and v ~= nil then return safe(v) and true or false end
+    if ok and v ~= nil and not isSecret(v) then return v and true or false end
   end
-  return true -- can't tell: let the hit check decide
+  return nil
+end
+
+local function debugCast(msg)
+  if FM.debug then print("|cff888888FM floating text:|r " .. msg) end
 end
 
 local lastCast -- { name, icon, t, harmful, used }
+local CAST_COLOR = { 1, 0.91, 0.66 }
+local HIT_COLOR, CRIT_COLOR = { 1, 0.54, 0.36 }, { 1, 0.82, 0 }
 
 local function onCast(spellID)
-  spellID = safe(spellID)
-  if not spellID then return end
+  if missing(spellID) then return end
+  local secretID = isSecret(spellID)
   local name, icon = spellInfo(spellID)
-  if not name or not icon or SKIP_CASTS[name] then return end
-  lastCast = { name = name, icon = icon, t = GetTime(), harmful = isHarmful(spellID, name) }
-  if FM:GetSetting("fctCasts") then
-    -- harmful spells float over your target; heals and buffs stay with your gains
-    local onTarget = lastCast.harmful and UnitExists("target") and UnitCanAttack("player", "target")
-    push(("|T%s:0|t |cffffe9a8%s|r"):format(icon, name), onTarget and "target" or nil)
+  if missing(name) or missing(icon) then
+    debugCast(("skipped a cast: no %s for it (spell ID %s)"):format(missing(name) and "name" or "icon", secretID and "hidden" or tostring(spellID)))
+    return
   end
+  if not isSecret(name) and SKIP_CASTS[name] then return end
+  local harmful = isHarmful(spellID)
+  local enemy = UnitExists("target") and UnitCanAttack("player", "target")
+  -- if we can't tell, a cast while targeting an enemy counts as an attack
+  if harmful == nil then harmful = enemy and true or false end
+  lastCast = { name = name, icon = icon, t = GetTime(), harmful = harmful }
+  if not FM:GetSetting("fctCasts") then return end
+  -- attacks float over your target; heals and buffs stay with your gains
+  local lane = (harmful and enemy) and "target" or nil
+  debugCast(("cast shown%s%s"):format(secretID and " (hidden spell ID)" or "", lane and " above target" or ""))
+  push(name, lane, { icon = icon, color = CAST_COLOR })
 end
 
 local function onUnitCombat(unit, action, flag, amount)
-  if unit ~= "target" or safe(action) ~= "WOUND" then return end
-  amount = tonumber(safe(amount))
+  if unit ~= "target" or isSecret(action) or action ~= "WOUND" then return end
   local c = lastCast
-  if not amount or amount <= 0 or not c or c.used or not c.harmful then return end
+  if not c or c.used or not c.harmful then return end
   if GetTime() - c.t > HIT_WINDOW or UnitIsUnit("target", "player") then return end
+  local text, crit
+  if isSecret(amount) then
+    text = amount -- can't check it, but the game can still show it
+  else
+    amount = tonumber(amount)
+    if not amount or amount <= 0 then return end
+    crit = not isSecret(flag) and flag == "CRITICAL"
+    text = crit and (amount .. "!") or tostring(amount)
+  end
   c.used = true -- one hit per cast
-  local crit = safe(flag) == "CRITICAL"
-  push(("|T%s:0|t %s%s|r"):format(c.icon, crit and "|cffffd100" or "|cffff8a5c",
-    crit and (amount .. "!") or tostring(amount)), "target")
+  push(text, "target", { icon = c.icon, color = crit and CRIT_COLOR or HIT_COLOR })
 end
 
 local hitsRegistered = false
@@ -463,8 +521,8 @@ function FM:FCTTest()
   if not anchor then return end
   if not FM:GetSetting("fct") then say("floating gains are off. Turn them on first.") return end
   push("+" .. money(12345))
-  push("|T135812:0|t |cffffe9a8Fireball|r", "target")  -- above your target if it has a nameplate
-  push("|T135812:0|t |cffff8a5c142|r", "target")
+  push("Fireball", "target", { icon = 135812, color = CAST_COLOR })  -- above your target if it has a nameplate
+  push("142", "target", { icon = 135812, color = HIT_COLOR })
   push("+ |cff1eff00[Sample Green Sword]|r")
   push("|cff6fa8ff+25 Stormwind|r")
   push("|cff69ccf0+1 Mining (76)|r")

@@ -549,39 +549,56 @@ local function show(data, keepAnim)
       modal.foot:SetText("|cffa8977aVisit your class trainer once, and future level-ups will list the skills you just unlocked.|r")
       modal.foot:ClearAllPoints(); modal.foot:SetPoint("TOPLEFT", 22, y); modal.foot:Show()
       y = y - modal.foot:GetStringHeight() - 6
-    elseif #data.skills == 0 then
-      modal.skillsHdr:SetText("New skills")
-      modal.foot:SetText("|cffa8977aNothing new this level.|r")
-      modal.foot:ClearAllPoints(); modal.foot:SetPoint("TOPLEFT", 22, y); modal.foot:Show()
-      y = y - modal.foot:GetStringHeight() - 6
     else
-      modal.skillsHdr:SetText(("New this level (%d)"):format(#data.skills))
-      for i, s in ipairs(data.skills) do
-        local r = modal.rows[i]
-        if not r then break end
-        r.skill = s
-        r.icon:SetTexture(s.icon or spellIcon(s.id) or "Interface\\Icons\\INV_Misc_QuestionMark")
-        r.name:SetText(s.r and ("%s |cffa8977a(%s)|r"):format(s.n, s.r) or s.n)
-        if s.known then
-          r.cost:SetText("|cff7fd36blearned|r")
-        elseif s.cost then
-          r.cost:SetText(s.cost > 0 and money(s.cost) or "|cff7fd36bfree|r")
-        else
-          r.cost:SetText("|cffa8977aat trainer|r")
+      local list, cost, upcoming = data.skills, data.cost or 0, nil
+      if #list == 0 then
+        -- Nothing new now: show the next level that brings something
+        for L = data.level + 1, data.level + 10 do
+          local l2, c2 = skillsAt(L)
+          if #l2 > 0 then list, cost, upcoming = l2, c2, L; break end
         end
-        r:ClearAllPoints(); r:SetPoint("TOPLEFT", 22, y); r:Show()
-        y = y - 22
       end
-      local extra = #data.skills - MAX_SKILLS
-      local foot = ""
-      if (data.cost or 0) > 0 then
-        foot = ("Total %s  ·  you have %s"):format(money(data.cost), money(GetMoney()))
-        if GetMoney() < data.cost then foot = foot .. "  |cffff6b6b(short)|r" end
+      if #list == 0 then
+        modal.skillsHdr:SetText("New skills")
+        modal.foot:SetText("|cffa8977aNothing new this level.|r")
+        modal.foot:ClearAllPoints(); modal.foot:SetPoint("TOPLEFT", 22, y); modal.foot:Show()
+        y = y - modal.foot:GetStringHeight() - 6
+      else
+        if upcoming then
+          modal.skillsHdr:SetText(("Nothing new this level. Next up, level %d:"):format(upcoming))
+        else
+          modal.skillsHdr:SetText(("New this level (%d)"):format(#list))
+        end
+        for i, sk in ipairs(list) do
+          local r = modal.rows[i]
+          if not r then break end
+          r.skill = sk
+          r.icon:SetTexture(sk.icon or spellIcon(sk.id) or "Interface\\Icons\\INV_Misc_QuestionMark")
+          r.name:SetText(sk.r and ("%s |cffa8977a(%s)|r"):format(sk.n, sk.r) or sk.n)
+          if sk.known then
+            r.cost:SetText("|cff7fd36blearned|r")
+          elseif sk.cost then
+            r.cost:SetText(sk.cost > 0 and money(sk.cost) or "|cff7fd36bfree|r")
+          else
+            r.cost:SetText("|cffa8977aat trainer|r")
+          end
+          r:SetAlpha(upcoming and 0.75 or 1) -- upcoming skills a touch dimmer
+          r:ClearAllPoints(); r:SetPoint("TOPLEFT", 22, y); r:Show()
+          y = y - 22
+        end
+        local extra = #list - MAX_SKILLS
+        local foot = ""
+        if cost > 0 then
+          foot = ("%s %s  ·  you have %s"):format(upcoming and "Will cost" or "Total", money(cost), money(GetMoney()))
+          if not upcoming and GetMoney() < cost then foot = foot .. "  |cffff6b6b(short)|r" end
+        end
+        if extra > 0 then foot = ("|cffa8977a+%d more|r   "):format(extra) .. foot end
+        if foot ~= "" then
+          modal.foot:SetText(foot)
+          modal.foot:ClearAllPoints(); modal.foot:SetPoint("TOPLEFT", 22, y - 4); modal.foot:Show()
+          y = y - 4 - modal.foot:GetStringHeight() - 6
+        end
       end
-      if extra > 0 then foot = ("|cffa8977a+%d more|r   "):format(extra) .. foot end
-      modal.foot:SetText(foot)
-      modal.foot:ClearAllPoints(); modal.foot:SetPoint("TOPLEFT", 22, y - 4); modal.foot:Show()
-      y = y - 4 - modal.foot:GetStringHeight() - 6
     end
   end
 

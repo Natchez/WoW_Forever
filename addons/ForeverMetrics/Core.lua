@@ -8,6 +8,12 @@ local FM = {}
 ns.FM = FM
 _G.ForeverMetrics = FM
 
+-- Version from the .toc, shown in the /fm window title and the login line
+do
+  local getMeta = (C_AddOns and C_AddOns.GetAddOnMetadata) or GetAddOnMetadata
+  FM.VERSION = getMeta and getMeta(ADDON, "Version") or "?"
+end
+
 local FEED_MAX = 300      -- activity entries kept per character
 local SESSIONS_MAX = 20   -- session summaries kept per character
 local TICK = 10           -- seconds between time-played/zone ticks
@@ -422,7 +428,7 @@ function H.PLAYER_LOGIN()
     c.zones[z] = (c.zones[z] or 0) + TICK
   end)
 
-  print("|cffe8c27aForever Metrics|r loaded. Type |cffffff00/fm|r to open.")
+  print("|cffe8c27aForever Metrics|r v" .. FM.VERSION .. " loaded. Type |cffffff00/fm|r to open.")
 end
 
 function H.PLAYER_XP_UPDATE()

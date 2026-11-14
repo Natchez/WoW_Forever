@@ -779,7 +779,7 @@ local function refresh()
   end
   if ui.focus == "nav" and win.usesPad then nav.focusEdge:Show() else nav.focusEdge:Hide() end
 
-  titleText:SetText("|cffe8c27aForever Metrics|r  |cffa8977a·  " .. s.label .. "|r")
+  titleText:SetText("|cffe8c27aForever Metrics|r |cff8a7a64v" .. (FM.VERSION or "?") .. "|r  |cffa8977a·  " .. s.label .. "|r")
   layoutTabs(s)
   placeBodies(#s.tabs > 1 and -32 or 0)
 

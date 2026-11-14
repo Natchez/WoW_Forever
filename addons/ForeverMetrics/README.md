@@ -1,4 +1,4 @@
-# Forever Metrics (v0.13.0)
+# Forever Metrics (v0.13.1)
 
 A RuneMetrics-style tracker for World of Warcraft: Forever. It keeps an activity feed and stats for every character, and you can swap between characters or view totals for your whole account.
 
@@ -39,6 +39,8 @@ A RuneMetrics-style tracker for World of Warcraft: Forever. It keeps an activity
   - **Tooltips**
   - **Chat**
   - **Quality of Life**
+
+The window title shows the installed version, like "Forever Metrics v0.13.1", and so does the "loaded" line in chat at login.
 
 `<` and `>` at the top right switch characters (including "All Characters") on pages that show one character's data. `/fm settings` opens straight to the Options pages.
 

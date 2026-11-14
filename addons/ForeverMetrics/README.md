@@ -1,4 +1,4 @@
-# Forever Metrics (v0.13.2)
+# Forever Metrics (v0.14.0)
 
 A RuneMetrics-style tracker for World of Warcraft: Forever. It keeps an activity feed and stats for every character, and you can swap between characters or view totals for your whole account.
 
@@ -40,7 +40,7 @@ A RuneMetrics-style tracker for World of Warcraft: Forever. It keeps an activity
   - **Chat**
   - **Quality of Life**
 
-The window title shows the installed version, like "Forever Metrics v0.13.2", and so does the "loaded" line in chat at login.
+The window title shows the installed version, like "Forever Metrics v0.14.0", and so does the "loaded" line in chat at login.
 
 `<` and `>` at the top right switch characters (including "All Characters") on pages that show one character's data. `/fm settings` opens straight to the Options pages.
 
@@ -140,7 +140,7 @@ Item tooltips with Attack Power get an extra blue line showing what that AP is w
 Every toggle lives under **Options** in the side menu, and `/fm settings` jumps straight there. Each page has a short note at the bottom. Any new settings group added in Core.lua gets its own page automatically.
 
 ## On-screen feed + Edit Mode
-New activity (level-ups, quests, green+ loot, skill milestones, deaths, new zones, duo notices) appears in a small feed. The last 5 lines stay on screen together, and the feed fades out 60 seconds after the last new entry.
+New activity (level-ups, quests, green+ loot, skill milestones, deaths, new zones, duo notices) appears in a small feed. From v0.14.0 it also shows the same gains as the floating text: XP, money, loot, reputation and skill-ups (turn off with "Also show gains" under Options > Interface > Feed). These lines are only shown, not saved to your history, and they follow the floating text's "Items to show" quality setting. With gains on, `/fm feed lines 8` shows more at once. The last 5 lines stay on screen together, and the feed fades out 60 seconds after the last new entry.
 
 To place it, open **Edit Mode** (Esc > Edit Mode). The feed shows up as a blue box labeled "Forever Metrics Feed" with sample lines. Drag it where you want, then close Edit Mode. The position is saved for all your characters.
 

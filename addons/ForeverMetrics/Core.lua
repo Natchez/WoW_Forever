@@ -187,6 +187,7 @@ FM.SETTINGS = {
   { group = "pill",    key = "pillCombatFade", label = "Dim XP pill in combat",                 default = true },
   { group = "pill",    key = "hideXPBar",      label = "Hide Blizzard's XP bar",                default = false },
   { group = "feed",    key = "feed",           label = "Show activity feed",                    default = true },
+  { group = "feed",    key = "feedGains",      label = "Also show gains: XP, money, loot, reputation, skill-ups", default = true },
   { group = "levelup", key = "levelModal",     label = "Celebrate level-ups with a pop-up",     default = true },
   { group = "levelup", key = "hideBlizzLevelUp", label = "Hide Blizzard's level-up banner (otherwise ours waits for it)", default = false },
   { group = "levelup", key = "levelSkills",    label = "List new skills to train",              default = true },

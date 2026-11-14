@@ -1,6 +1,7 @@
 -- Forever Metrics: floating gains
 -- Money, loot, reputation, skill-ups (and optionally XP) float up above your
--- character. New lines come in at the bottom and push older ones up, with a
+-- character. The same gains can also go to the on-screen activity feed
+-- ("Also show gains" in the Feed options), XP included. New lines come in at the bottom and push older ones up, with a
 -- gap between lines ("Space between lines" option). These all come from
 -- chat/system events, which addons can read even where combat data is hidden.
 --
@@ -136,6 +137,17 @@ local function push(text)
   driver:SetScript("OnUpdate", animate)
 end
 
+-- One gain goes to two places, each with its own switches: the floating
+-- text (per-kind toggles below) and the activity feed ("feedGains").
+local FLOAT_SETTING = { money = "fctGold", loot = "fctLoot", rep = "fctRep", skill = "fctSkill", xp = "fctXP" }
+
+local function gain(kind, text, toFeed)
+  if FM:GetSetting(FLOAT_SETTING[kind]) then push(text) end
+  if toFeed ~= false and FM:GetSetting("feedGains") and FM.OnNewEntry then
+    FM:OnNewEntry({ t = time(), k = kind, x = text }) -- shown only, not saved to the history
+  end
+end
+
 -- Money and XP arrive in bursts (kill xp + quest xp, several coins), so
 -- add them up for a moment and show one total.
 local pending = {}
@@ -146,7 +158,7 @@ local function pushMerged(kind, amount, format)
   C_Timer.After(MERGE, function()
     local total = pending[kind].amount
     pending[kind] = nil
-    push(format(total))
+    gain(kind, format(total))
   end)
 end
 
@@ -180,7 +192,6 @@ local function itemIcon(link)
 end
 
 local function onLoot(msg)
-  if not FM:GetSetting("fctLoot") then return end
   local link, qty
   for _, p in ipairs(PAT_LOOT) do
     link, qty = msg:match(p)
@@ -191,22 +202,23 @@ local function onLoot(msg)
   if q and q < (FM:GetSetting("fctLootQuality") or 1) then return end
   local icon = itemIcon(link)
   qty = tonumber(qty) or 1
-  push(("+ %s%s%s"):format(icon and ("|T" .. icon .. ":0|t ") or "", link, qty > 1 and (" x" .. qty) or ""))
+  -- greens and better already get their own feed line ("Looted ..."), so skip them there
+  gain("loot", ("+ %s%s%s"):format(icon and ("|T" .. icon .. ":0|t ") or "", link, qty > 1 and (" x" .. qty) or ""),
+    not (q and q >= 2))
 end
 
 local function onRep(msg)
-  if not FM:GetSetting("fctRep") then return end
   local a, b = msg:match(PAT_REP)
   if not a then return end
   local faction, amount = a, b
   if tonumber(a) and not tonumber(b) then faction, amount = b, a end -- some locales flip the order
-  push(("|cff6fa8ff+%s %s|r"):format(amount, faction))
+  gain("rep", ("|cff6fa8ff+%s %s|r"):format(amount, faction))
 end
 
 local function onSkill(msg)
-  if not FM:GetSetting("fctSkill") then return end
   local skill, rank = msg:match(PAT_SKILL)
-  if skill then push(("|cff69ccf0+1 %s (%s)|r"):format(skill, rank)) end
+  -- every 25th point already gets a "Reached 100 Mining" feed line
+  if skill then gain("skill", ("|cff69ccf0+1 %s (%s)|r"):format(skill, rank), (tonumber(rank) or 1) % 25 ~= 0) end
 end
 
 local lastMoney, lastXP, lastMax
@@ -281,7 +293,7 @@ local function build()
   end
 
   lastMoney = GetMoney()
-  lastXP, lastMax = UnitXP("player"), UnitXPMax("player")
+  lastXP, lastMax = tonumber(safe(UnitXP("player"))), tonumber(safe(UnitXPMax("player")))
 end
 
 local ev = CreateFrame("Frame")
@@ -293,17 +305,18 @@ function H.PLAYER_MONEY()
   local m = GetMoney()
   local d = m - (lastMoney or m)
   lastMoney = m
-  if d > 0 and FM:GetSetting("fctGold") then
+  if d > 0 then
     pushMerged("money", d, function(total) return "+" .. money(total) end)
   end
 end
 
 function H.PLAYER_XP_UPDATE()
-  local cur, max = UnitXP("player"), UnitXPMax("player")
+  local cur, max = tonumber(safe(UnitXP("player"))), tonumber(safe(UnitXPMax("player")))
+  if not cur or not max then return end -- hidden for the moment
   local gained = 0
   if lastXP then gained = cur >= lastXP and (cur - lastXP) or ((lastMax or 0) - lastXP + cur) end
   lastXP, lastMax = cur, max
-  if gained > 0 and FM:GetSetting("fctXP") then
+  if gained > 0 then
     pushMerged("xp", gained, function(total) return ("|cffd9a6ff+%d XP|r"):format(total) end)
   end
 end

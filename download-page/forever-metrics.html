@@ -59,7 +59,6 @@ button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
 button:disabled { opacity: .55; cursor: default; filter: none; }
 .status { font-size: 14px; color: var(--muted); min-height: 1.4em; }
 .status.ok { color: var(--ok); } .status.err { color: var(--err); }
-.secondary { background: transparent; color: var(--gold); box-shadow: inset 0 0 0 1.5px var(--gold); }
 h2 { font: 600 19px/1.3 var(--display); margin: 0 0 10px; letter-spacing: .02em; }
 section ol { margin: 0; padding-left: 1.3em; display: grid; gap: 8px; }
 section p { margin: 0 0 10px; }
@@ -95,20 +94,6 @@ code { font: 13px/1.4 var(--mono); background: var(--gold-soft); padding: 1px 6p
       <li>If an older <code>ForeverMetrics</code> folder is already there, replace it. Your saved stats live elsewhere and stay put.</li>
       <li>Launch the game and type <code>/fm</code> to open it.</li>
     </ol>
-  </section>
-
-  <section>
-    <h2>Get updates with one click</h2>
-    <p>The updater downloads the newest version of our addons and swaps out the old folders for you. Set it up once on each PC (Windows only).</p>
-    <ol>
-      <li>Download the updater and unzip it anywhere you'll find it again, like your Documents folder.</li>
-      <li>Double-click <code>Update WoW Addons.bat</code>. The first time, it finds your AddOns folder (or asks you to pick it) and remembers it.</li>
-      <li>Run it again whenever there's an update. If WoW is open, type <code>/reload</code> afterwards.</li>
-    </ol>
-    <div class="actions" style="margin-top:14px">
-      <button id="dl-up" class="secondary" type="button">Download the updater</button>
-      <span id="status-up" class="status" role="status"></span>
-    </div>
   </section>
 
   <section>
@@ -175,9 +160,5 @@ code { font: 13px/1.4 var(--mono); background: var(--gold-soft); padding: 1px 6p
     return { folder: pkg.folder, files: pkg.files, filename: pkg.folder + "-" + (pkg.version || "latest") + ".zip" };
   }, "Downloaded. Follow the install steps below.");
 
-  wire("dl-up", "status-up", function (pkg) {
-    if (!pkg.updater) throw { code: "fetch" };
-    return { folder: pkg.updater.folder, files: pkg.updater.files, filename: pkg.updater.folder + ".zip" };
-  }, "Downloaded. Unzip it, then double-click Update WoW Addons.bat.");
 })();
 </script>

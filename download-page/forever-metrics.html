@@ -3,16 +3,23 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
 <style>
-/* Layout: one narrow column, a leather "addon card" up top, then two short how-to blocks. Colors echo the addon's own brown + gold theme. */
+/* Layout: a stats ledger. Header strip with the "Get the addon" dialog, a
+   row of totals, a character roster you pick from, that character's
+   detail panels in a two-column grid, then the duo section. Colors echo the
+   addon's own brown leather + gold trim. */
 :root {
   --bg: #f3ece1;
   --panel: #fbf7f0;
   --ink: #2b2016;
   --muted: #6e5c48;
+  --faint: #a8957c;
   --gold: #9a6b22;
   --gold-soft: #e7d2a8;
   --rule: #dccbb0;
-  --duo: #b8487a;
+  --track: #ece2d1;
+  --bar: #9a6b22;
+  --you: #2a78d6;
+  --her: #e87ba4;
   --btn-ink: #fffaf0;
   --ok: #3f7d3a;
   --err: #a8382c;
@@ -22,143 +29,498 @@
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #17110b; --panel: #221910; --ink: #f1e6d4; --muted: #b49f84;
-    --gold: #e1b45e; --gold-soft: #4a3820; --rule: #3d2e1d; --duo: #f08bb8;
+    --bg: #17110b; --panel: #221910; --ink: #f1e6d4; --muted: #b49f84; --faint: #7d6a53;
+    --gold: #e1b45e; --gold-soft: #4a3820; --rule: #3d2e1d; --track: #33261a; --bar: #d9a94f;
+    --you: #3987e5; --her: #d55181;
     --btn-ink: #1c140b; --ok: #8fd17f; --err: #f08a7c; color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
-  --bg: #17110b; --panel: #221910; --ink: #f1e6d4; --muted: #b49f84;
-  --gold: #e1b45e; --gold-soft: #4a3820; --rule: #3d2e1d; --duo: #f08bb8;
+  --bg: #17110b; --panel: #221910; --ink: #f1e6d4; --muted: #b49f84; --faint: #7d6a53;
+  --gold: #e1b45e; --gold-soft: #4a3820; --rule: #3d2e1d; --track: #33261a; --bar: #d9a94f;
+  --you: #3987e5; --her: #d55181;
   --btn-ink: #1c140b; --ok: #8fd17f; --err: #f08a7c; color-scheme: dark;
 }
+* { box-sizing: border-box; }
 body {
-  background: var(--bg); color: var(--ink); font: 15px/1.6 var(--body);
+  background: var(--bg); color: var(--ink); font: 14px/1.55 var(--body);
   padding-left: max(16px, env(safe-area-inset-left, 0px));
   padding-right: max(16px, env(safe-area-inset-right, 0px));
-  padding-block: 40px 56px;
+  padding-block: 28px 56px;
 }
-main { max-width: 620px; margin: 0 auto; display: grid; gap: 32px; }
-.card {
-  background: var(--panel); border: 1px solid var(--rule); border-radius: 10px;
-  box-shadow: inset 0 0 0 3px var(--panel), inset 0 0 0 4px var(--gold-soft);
-  padding: 28px 24px; display: grid; gap: 18px;
-}
+main { max-width: 1060px; margin: 0 auto; display: grid; gap: 28px; }
+h1 { font: 700 clamp(26px, 5vw, 36px)/1.1 var(--display); margin: 0; letter-spacing: .01em; }
+h2 { font: 600 18px/1.3 var(--display); margin: 0; letter-spacing: .02em; }
+h3 { font: 600 12px/1.2 var(--mono); margin: 0 0 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
 .eyebrow { font: 500 12px/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--gold); }
-h1 { font: 700 clamp(28px, 6vw, 38px)/1.1 var(--display); margin: 0; text-wrap: balance; letter-spacing: .01em; }
-.lede { margin: 0; color: var(--muted); max-width: 60ch; }
-.meta { display: flex; flex-wrap: wrap; gap: 8px 18px; font: 13px/1.4 var(--mono); color: var(--muted); }
-.meta b { color: var(--ink); font-weight: 500; }
-.actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; }
+.muted { color: var(--muted); }
+.num { font-variant-numeric: tabular-nums; }
+code { font: 12.5px/1.4 var(--mono); background: var(--gold-soft); padding: 1px 6px; border-radius: 4px; overflow-wrap: anywhere; }
+
+/* header */
+.top { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 14px 24px; }
+.top .titles { display: grid; gap: 8px; min-width: 0; }
+.snap { font: 12.5px/1.4 var(--mono); color: var(--muted); }
 button {
-  font: 600 15px/1 var(--body); color: var(--btn-ink); background: var(--gold);
-  border: 0; border-radius: 6px; padding: 14px 22px; cursor: pointer;
+  font: 600 14px/1 var(--body); color: var(--btn-ink); background: var(--gold);
+  border: 0; border-radius: 6px; padding: 12px 18px; cursor: pointer;
 }
 button:hover { filter: brightness(1.08); }
-button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
+button:focus-visible, .pick:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
 button:disabled { opacity: .55; cursor: default; filter: none; }
-.status { font-size: 14px; color: var(--muted); min-height: 1.4em; }
+.ghost { background: transparent; color: var(--gold); box-shadow: inset 0 0 0 1.5px var(--gold); }
+
+/* totals */
+.totals { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.tile { background: var(--panel); border: 1px solid var(--rule); border-radius: 8px; padding: 14px 16px; display: grid; gap: 4px; }
+.tile b { font: 600 24px/1.1 var(--body); font-variant-numeric: tabular-nums; }
+.tile span { font: 12px/1.3 var(--mono); color: var(--muted); letter-spacing: .04em; }
+
+/* roster */
+.roster { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+.pick {
+  text-align: left; background: var(--panel); color: var(--ink); border: 1px solid var(--rule); border-radius: 8px;
+  padding: 14px 16px; display: grid; gap: 6px; font: inherit; cursor: pointer; box-shadow: none;
+}
+.pick:hover { filter: none; border-color: var(--gold); }
+.pick[aria-pressed="true"] { border-color: var(--gold); box-shadow: inset 0 0 0 1px var(--gold), 0 0 0 3px var(--gold-soft); }
+.pick .row1 { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.pick .nm { font: 600 16px/1.2 var(--body); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pick .lv { margin-left: auto; font: 600 13px/1 var(--mono); color: var(--gold); white-space: nowrap; }
+.pick .sub { font-size: 12.5px; color: var(--muted); }
+.dot { width: 10px; height: 10px; border-radius: 50%; flex: none; box-shadow: 0 0 0 1px var(--rule); }
+
+/* detail grid */
+.detail { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.panel { background: var(--panel); border: 1px solid var(--rule); border-radius: 8px; padding: 16px 18px; min-width: 0; }
+.panel.wide { grid-column: 1 / -1; }
+@media (max-width: 720px) { .detail { grid-template-columns: minmax(0, 1fr); } }
+.kv { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 10px 16px; }
+.kv div { display: grid; gap: 2px; }
+.kv b { font: 600 17px/1.2 var(--body); font-variant-numeric: tabular-nums; }
+.kv span { font-size: 12px; color: var(--muted); }
+.empty { color: var(--faint); font-size: 13px; margin: 0; }
+
+/* horizontal bar lists */
+.bars { display: grid; gap: 7px; margin: 0; padding: 0; list-style: none; }
+.bars li { display: grid; grid-template-columns: minmax(70px, 34%) 1fr auto; align-items: center; gap: 10px; font-size: 13px; }
+.bars .lb { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bars .tr { height: 8px; background: var(--track); border-radius: 4px; overflow: hidden; }
+.bars .fl { height: 100%; background: var(--bar); border-radius: 0 4px 4px 0; min-width: 2px; }
+.bars .vl { font: 12.5px/1 var(--mono); color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* sessions column chart */
+.cols { position: relative; height: 150px; display: flex; align-items: flex-end; gap: 4px; padding-top: 18px; border-bottom: 1px solid var(--rule); }
+.cols .c { flex: 1 1 0; min-width: 6px; background: var(--bar); border-radius: 4px 4px 0 0; position: relative; }
+.cols .c:hover, .cols .c:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
+.cols .avg { position: absolute; left: 0; right: 0; border-top: 1px dashed var(--muted); pointer-events: none; }
+.cols .avg span { position: absolute; right: 0; top: -17px; font: 11px/1 var(--mono); color: var(--muted); background: var(--panel); padding: 0 3px; }
+.axis { display: flex; justify-content: space-between; font: 11px/1 var(--mono); color: var(--faint); margin-top: 6px; }
+
+/* loot */
+.qual { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 13px; margin-bottom: 12px; }
+.qual span { display: inline-flex; align-items: center; gap: 6px; }
+.sw { width: 10px; height: 10px; border-radius: 2px; box-shadow: 0 0 0 1px var(--faint); flex: none; }
+.finds { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; font-size: 13px; }
+.finds li { display: grid; grid-template-columns: auto 1fr; gap: 2px 8px; align-items: center; }
+.finds .meta { grid-column: 2; font-size: 12px; color: var(--muted); }
+
+/* feed */
+.feed { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; font-size: 13px; max-height: 320px; overflow-y: auto; }
+.feed li { display: grid; grid-template-columns: 88px 1fr; gap: 10px; }
+.feed time { font: 11.5px/1.6 var(--mono); color: var(--faint); }
+
+/* duo */
+.duohead { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; margin-bottom: 4px; }
+.legend { display: flex; gap: 16px; font-size: 12.5px; color: var(--muted); margin-bottom: 10px; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.score { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.score li { display: grid; grid-template-columns: 110px 1fr; gap: 10px; align-items: center; font-size: 13px; }
+.score .pair { display: grid; gap: 3px; }
+.score .ln { display: grid; grid-template-columns: 1fr 70px; gap: 8px; align-items: center; }
+.score .tr { height: 7px; background: var(--track); border-radius: 4px; overflow: hidden; }
+.score .fl { height: 100%; border-radius: 0 4px 4px 0; min-width: 2px; }
+.score .vl { font: 12px/1 var(--mono); color: var(--muted); text-align: right; white-space: nowrap; }
+.lead { color: var(--ink); font-weight: 600; }
+
+/* tooltip */
+#tip { position: fixed; z-index: 20; pointer-events: none; background: var(--ink); color: var(--panel); font: 12px/1.4 var(--body);
+       padding: 6px 9px; border-radius: 6px; max-width: 260px; white-space: pre-line; }
+
+/* get-the-addon dialog */
+dialog { border: 1px solid var(--rule); border-radius: 10px; background: var(--panel); color: var(--ink); padding: 0;
+         width: min(560px, calc(100vw - 32px)); max-height: calc(100vh - 48px); }
+dialog::backdrop { background: rgba(20, 12, 4, .55); }
+.dlg { padding: 22px 22px 20px; display: grid; gap: 16px; }
+.dlg .head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.dlg ol { margin: 0; padding-left: 1.3em; display: grid; gap: 7px; }
+.dlg .path { display: block; margin-top: 4px; padding: 7px 9px; overflow-x: auto; white-space: nowrap; }
+.actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
+.status { font-size: 13px; color: var(--muted); min-height: 1.4em; }
 .status.ok { color: var(--ok); } .status.err { color: var(--err); }
-h2 { font: 600 19px/1.3 var(--display); margin: 0 0 10px; letter-spacing: .02em; }
-section ol { margin: 0; padding-left: 1.3em; display: grid; gap: 8px; }
-section p { margin: 0 0 10px; }
-code { font: 13px/1.4 var(--mono); background: var(--gold-soft); padding: 1px 6px; border-radius: 4px; overflow-wrap: anywhere; }
-.path { display: block; margin-top: 4px; padding: 8px 10px; overflow-x: auto; white-space: nowrap; }
-.duo { color: var(--duo); font-weight: 600; }
-.cmds { display: grid; grid-template-columns: max-content 1fr; gap: 6px 14px; margin: 0; }
-.cmds dt { font: 13px/1.6 var(--mono); color: var(--gold); }
+.close { background: transparent; color: var(--muted); padding: 6px 10px; font-size: 20px; line-height: 1; }
+details { border-top: 1px solid var(--rule); padding-top: 12px; }
+summary { cursor: pointer; font-weight: 600; }
+.cmds { display: grid; grid-template-columns: max-content 1fr; gap: 6px 14px; margin: 10px 0 0; font-size: 13px; }
+.cmds dt { font: 12.5px/1.6 var(--mono); color: var(--gold); }
 .cmds dd { margin: 0; min-width: 0; }
-@media (max-width: 440px) { .cmds { grid-template-columns: 1fr; } .cmds dd { margin-bottom: 6px; } }
+@media (max-width: 440px) { .cmds { grid-template-columns: 1fr; } }
+@media (prefers-reduced-motion: no-preference) { .fl, .c { transition: width .3s ease, height .3s ease; } }
 </style>
 
 <main>
-  <div class="card">
-    <span class="eyebrow">WoW addon · for the duo</span>
-    <h1>Forever Metrics</h1>
-    <p class="lede">Stats, an activity feed and loot luck for every character, plus <span class="duo">duo mode</span> so you two can see each other's levels, rare finds and a head-to-head scoreboard. New in this version: a redesigned window with a dashboard, a level-up pop-up that lists your new trainer skills, floating gold and loot text, and optional helpers like auto-repair and selling greys.</p>
-    <div class="meta"><span>Version <b id="ver">0.10.1</b></span><span>Size <b>about 60 KB</b></span><span>Folder <b>ForeverMetrics</b></span></div>
+  <header class="top">
+    <div class="titles">
+      <span class="eyebrow">WoW: Forever · CAMWOW realm</span>
+      <h1>Forever Metrics</h1>
+      <span class="snap" id="snap">Loading stats…</span>
+    </div>
+    <button id="open-dl" type="button">Get the addon <span id="ver-btn"></span></button>
+  </header>
+
+  <section class="totals" id="totals" aria-label="Account totals"></section>
+
+  <section>
+    <h3>Characters</h3>
+    <div class="roster" id="roster" role="group" aria-label="Pick a character"></div>
+  </section>
+
+  <section class="detail" id="detail" aria-live="polite"></section>
+
+  <section class="detail" id="duo"></section>
+</main>
+
+<div id="tip" hidden></div>
+
+<dialog id="dl-dialog" aria-labelledby="dl-title">
+  <div class="dlg">
+    <div class="head">
+      <div>
+        <span class="eyebrow">ForeverMetrics addon</span>
+        <h2 id="dl-title">Version <span id="ver">0.14.1</span></h2>
+      </div>
+      <button class="close" type="button" id="close-dl" aria-label="Close">×</button>
+    </div>
     <div class="actions">
-      <button id="dl" type="button">Download ForeverMetrics-0.10.1.zip</button>
+      <button id="dl" type="button">Download ForeverMetrics.zip</button>
       <span id="status" class="status" role="status"></span>
     </div>
-  </div>
-
-  <section>
-    <h2>Install</h2>
     <ol>
       <li>Close World of Warcraft.</li>
-      <li>Open your AddOns folder. It's inside your WoW install, for example
-        <code class="path">World of Warcraft\_classic_\Interface\AddOns</code>
-        Use whichever game folder you actually play from.</li>
-      <li>Unzip the download there. You should end up with a <code>ForeverMetrics</code> folder directly inside <code>AddOns</code>, not a folder inside a folder.</li>
-      <li>If an older <code>ForeverMetrics</code> folder is already there, replace it. Your saved stats live elsewhere and stay put.</li>
-      <li>Launch the game and type <code>/fm</code> to open it.</li>
+      <li>Open your AddOns folder, for example
+        <code class="path">World of Warcraft\_forever_\Interface\AddOns</code></li>
+      <li>Unzip the download there, so you get <code>AddOns\ForeverMetrics\ForeverMetrics.toc</code>. Replace an older <code>ForeverMetrics</code> folder if there is one; saved stats are kept.</li>
+      <li>Start the game and type <code>/fm</code>. The window title shows the version.</li>
     </ol>
-  </section>
-
-  <section>
-    <h2>Pair up for <span class="duo">duo mode</span></h2>
-    <p>Log in while you're both in the guild or grouped. A popup asks whether to add the other person as your duo partner. Click <b>Add partner</b> once on each side and you're linked, alts included.</p>
-    <dl class="cmds">
-      <dt>/fm duo</dt><dd>See your partner and whether they're online</dd>
-      <dt>/fm duo add Name</dt><dd>Send a pairing request if the popup didn't show</dd>
-      <dt>/fm duo name Nickname</dt><dd>Give your partner a nickname</dd>
-      <dt>/fm debug</dt><dd>Show errors in chat if something isn't working</dd>
-    </dl>
-  </section>
-</main>
+    <details>
+      <summary>Duo mode and handy commands</summary>
+      <dl class="cmds">
+        <dt>/fm duo</dt><dd>See your partner and whether they're online</dd>
+        <dt>/fm duo add Name</dt><dd>Send a pairing request if the popup didn't show</dd>
+        <dt>/fm levelup check</dt><dd>What skill data the level-up pop-up can see</dd>
+        <dt>/fm debug</dt><dd>Show errors in chat if something isn't working</dd>
+      </dl>
+    </details>
+    <details>
+      <summary>Update these stats</summary>
+      <p class="muted" style="margin:10px 0 0">Log out (or <code>/reload</code>), then send Claude
+        <code class="path">WTF\Account\&lt;ACCOUNT&gt;\SavedVariables\ForeverMetrics.lua</code>
+        from your WoW folder. Each player has their own file.</p>
+    </details>
+  </div>
+</dialog>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script>
 (function () {
-  var downloadsP = (window.claude && window.claude.use) ? window.claude.use("downloads") : Promise.resolve(null);
-  var pkgP = fetch("addon-files.json").then(function (r) {
-    if (!r.ok) throw { code: "fetch" };
-    return r.json();
+  // ---------- helpers ----------
+  var CLASS_COLOR = { WARRIOR: "#c69b6d", MAGE: "#3fc7eb", ROGUE: "#fff468", SHAMAN: "#0070dd", DRUID: "#ff7c0a",
+    PRIEST: "#ffffff", PALADIN: "#f48cba", HUNTER: "#aad372", WARLOCK: "#8788ee" };
+  var QUAL = [ { n: "Poor", c: "#9d9d9d" }, { n: "Common", c: "#ffffff" }, { n: "Uncommon", c: "#1eff00" },
+    { n: "Rare", c: "#0070dd" }, { n: "Epic", c: "#a335ee" }, { n: "Legendary", c: "#ff8000" } ];
+  function el(tag, attrs, kids) {
+    var e = document.createElement(tag);
+    for (var k in attrs || {}) {
+      if (k === "text") e.textContent = attrs[k];
+      else if (k === "style") e.setAttribute("style", attrs[k]);
+      else e.setAttribute(k, attrs[k]);
+    }
+    (kids || []).forEach(function (c) { if (c) e.appendChild(typeof c === "string" ? document.createTextNode(c) : c); });
+    return e;
+  }
+  function cap(s) { return s ? s.charAt(0) + s.slice(1).toLowerCase() : ""; }
+  function n(x) { return (x || 0).toLocaleString("en-US"); }
+  function dur(sec) {
+    sec = Math.max(0, Math.round(sec || 0));
+    var h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60);
+    return h ? h + "h " + m + "m" : m + "m";
+  }
+  function gold(c) {
+    c = Math.round(c || 0);
+    var g = Math.floor(c / 10000), s = Math.floor(c / 100) % 100, cp = c % 100;
+    return g ? g + "g " + s + "s" : (s ? s + "s " + cp + "c" : cp + "c");
+  }
+  function day(t) { return t ? new Date(t * 1000).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : ""; }
+  function when(t) { return t ? new Date(t * 1000).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : ""; }
+  function store(k, v) { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch (e) { return null; } }
+
+  // ---------- tooltip ----------
+  var tip = document.getElementById("tip");
+  function showTip(e, text) {
+    tip.textContent = text; tip.hidden = false;
+    var x = e.clientX + 14, y = e.clientY + 14, r = tip.getBoundingClientRect();
+    if (x + r.width > innerWidth - 8) x = e.clientX - r.width - 14;
+    if (y + r.height > innerHeight - 8) y = e.clientY - r.height - 14;
+    tip.style.left = x + "px"; tip.style.top = y + "px";
+  }
+  document.addEventListener("pointermove", function (e) {
+    var t = e.target.closest && e.target.closest("[data-tip]");
+    if (t) showTip(e, t.getAttribute("data-tip")); else tip.hidden = true;
+  });
+  document.addEventListener("focusin", function (e) {
+    var t = e.target.closest && e.target.closest("[data-tip]");
+    if (!t) { tip.hidden = true; return; }
+    var r = t.getBoundingClientRect();
+    showTip({ clientX: r.left + r.width / 2, clientY: r.top }, t.getAttribute("data-tip"));
   });
 
-  // Show the version from the published files, so the page never lags behind them
-  pkgP.then(function (pkg) {
-    if (!pkg.version) return;
-    document.getElementById("ver").textContent = pkg.version;
-    document.getElementById("dl").textContent = "Download ForeverMetrics-" + pkg.version + ".zip";
-  }).catch(function () {});
+  // ---------- building blocks ----------
+  function panel(title, wide, body) {
+    return el("div", { "class": "panel" + (wide ? " wide" : "") }, [el("h3", { text: title })].concat(body));
+  }
+  function empty(text) { return el("p", { "class": "empty", text: text }); }
+  function barList(rows, fmt, tipFn, fixedMax) {
+    if (!rows.length) return null;
+    var max = fixedMax || Math.max.apply(null, rows.map(function (r) { return r.value; })) || 1;
+    return el("ul", { "class": "bars" }, rows.map(function (r) {
+      return el("li", { "data-tip": tipFn ? tipFn(r) : r.name + ": " + fmt(r.value) }, [
+        el("span", { "class": "lb", text: r.name }),
+        el("span", { "class": "tr" }, [el("span", { "class": "fl", style: "display:block;width:" + (100 * r.value / max) + "%" })]),
+        el("span", { "class": "vl", text: fmt(r.value) })
+      ]);
+    }));
+  }
 
-  function wire(btnId, statusId, pick, doneText) {
-    var btn = document.getElementById(btnId);
-    var status = document.getElementById(statusId);
-    function say(text, cls) { status.textContent = text; status.className = "status " + (cls || ""); }
-    btn.addEventListener("click", function () {
-      btn.disabled = true;
-      say("Preparing the file…");
-      var name;
-      Promise.all([downloadsP, pkgP.then(function (pkg) {
-        if (!window.JSZip) throw { code: "fetch" };
-        var part = pick(pkg);
-        name = part.filename;
-        var zip = new JSZip();
-        var dir = zip.folder(part.folder);
-        Object.keys(part.files).forEach(function (f) { dir.file(f, part.files[f]); });
-        return zip.generateAsync({ type: "blob", compression: "DEFLATE" });
-      })]).then(function (res) {
-        if (!res[0]) throw { code: "unavailable" };
-        say("Confirm the download in the prompt.");
-        return res[0].save({ filename: name, data: res[1] });
-      }).then(function () {
-        say(doneText, "ok");
-      }).catch(function (e) {
-        var code = e && e.code;
-        if (code === "declined") say("Download cancelled. Click the button to try again.");
-        else if (code === "rate_limited") say("A download prompt is already open. Finish that one first.");
-        else if (code === "fetch") say("The file couldn't be loaded. Reload the page and try again.", "err");
-        else say("Downloads aren't available in this view. Open this page in claude.ai in a browser.", "err");
-      }).then(function () { btn.disabled = false; });
+  // ---------- data ----------
+  var DATA = null, sel = null;
+
+  function renderTotals() {
+    var t = { played: 0, kills: 0, quests: 0, deaths: 0, earned: 0, levels: 0 };
+    DATA.chars.forEach(function (c) {
+      t.played += c.played; t.kills += c.stats.kills; t.quests += c.stats.quests;
+      t.deaths += c.stats.deaths; t.earned += c.stats.goldEarned; t.levels += c.stats.levels;
+    });
+    var box = document.getElementById("totals");
+    box.textContent = "";
+    [[dur(t.played), "time tracked"], [n(t.kills), "kills"], [n(t.quests), "quests"],
+     [n(t.levels), "levels gained"], [gold(t.earned), "gold earned"], [n(t.deaths), t.deaths === 1 ? "death" : "deaths"]]
+      .forEach(function (x) { box.appendChild(el("div", { "class": "tile" }, [el("b", { text: x[0] }), el("span", { text: x[1] })])); });
+  }
+
+  function renderRoster() {
+    var box = document.getElementById("roster");
+    box.textContent = "";
+    DATA.chars.forEach(function (c) {
+      var b = el("button", { "class": "pick", type: "button", "aria-pressed": String(c.key === sel) }, [
+        el("span", { "class": "row1" }, [
+          el("span", { "class": "dot", style: "background:" + (CLASS_COLOR[c["class"]] || "var(--faint)") }),
+          el("span", { "class": "nm", text: c.name }),
+          el("span", { "class": "lv", text: "Lv " + c.level })
+        ]),
+        el("span", { "class": "sub", text: cap(c["class"]) + " · " + dur(c.played) + " tracked" })
+      ]);
+      b.addEventListener("click", function () { sel = c.key; store("fm-char", sel); renderRoster(); renderDetail(); });
+      box.appendChild(b);
     });
   }
 
-  wire("dl", "status", function (pkg) {
-    return { folder: pkg.folder, files: pkg.files, filename: pkg.folder + "-" + (pkg.version || "latest") + ".zip" };
-  }, "Downloaded. Follow the install steps below.");
+  function renderDetail() {
+    var c = DATA.chars.filter(function (x) { return x.key === sel; })[0];
+    var box = document.getElementById("detail");
+    box.textContent = "";
+    if (!c) return;
 
+    // overview
+    var s = c.stats;
+    box.appendChild(panel(c.name + " · level " + c.level + " " + cap(c["class"]), true, [el("div", { "class": "kv" }, [
+      ["XP per hour", c.xpPerHour ? n(c.xpPerHour) : "—"], ["Kills", n(s.kills)], ["Quests", n(s.quests)],
+      ["Deaths", n(s.deaths)], ["Gold earned", gold(s.goldEarned)], ["Gold spent", gold(s.goldSpent)],
+      ["Looted from mobs", gold(s.goldLooted)], ["Last played", day(c.lastSeen)]
+    ].map(function (x) { return el("div", null, [el("b", { text: x[1] }), el("span", { text: x[0] })]); }))]));
+
+    // time per level
+    var lv = Object.keys(c.levelTimes).map(Number).sort(function (a, b) { return a - b; })
+      .map(function (k) { return { name: "Level " + (k - 1) + " → " + k, value: c.levelTimes[k] }; })
+      .filter(function (r) { return r.value > 0; });
+    box.appendChild(panel("Time per level", false, [barList(lv, dur) || empty("Shows up as this character levels with the addon running.")]));
+
+    // where the time went
+    box.appendChild(panel("Where the time went", false, [barList(c.zones, dur) || empty("No zones yet.")]));
+
+    // sessions
+    var ses = c.sessions.filter(function (x) { return x.dur >= 600; });
+    var sesBody;
+    if (ses.length < 2) {
+      sesBody = [empty("Needs a couple of play sessions of 10 minutes or more.")];
+    } else {
+      var rates = ses.map(function (x) { return x.xp / (x.dur / 3600); });
+      var max = Math.max.apply(null, rates) || 1;
+      var avg = c.xpPerHour || 0;
+      var cols = el("div", { "class": "cols", role: "img", "aria-label": "XP per hour for each of " + ses.length + " sessions" },
+        ses.map(function (x, i) {
+          return el("div", { "class": "c", tabindex: "0", style: "height:" + Math.max(1, 100 * rates[i] / max) + "%",
+            "data-tip": when(x.start) + " · " + dur(x.dur) + "\n" + n(Math.round(rates[i])) + " XP/hr · " + n(x.kills) + " kills · " + n(x.quests) + " quests" });
+        }));
+      if (avg) {
+        cols.appendChild(el("div", { "class": "avg", style: "bottom:" + (100 * avg / max) + "%" }, [el("span", { text: "avg " + n(avg) })]));
+      }
+      sesBody = [cols, el("div", { "class": "axis" }, [el("span", { text: day(ses[0].start) }), el("span", { text: day(ses[ses.length - 1].start) })])];
+    }
+    box.appendChild(panel("XP per hour, by session", false, sesBody));
+
+    // loot
+    var q = c.loot.q, qual = el("div", { "class": "qual" });
+    QUAL.forEach(function (Q, i) {
+      if (q[i]) qual.appendChild(el("span", null, [el("span", { "class": "sw", style: "background:" + Q.c }), Q.n + " " + n(q[i])]));
+    });
+    var finds = c.loot.notable.slice().reverse();
+    box.appendChild(panel("Loot", false, [
+      qual.childNodes.length ? qual : empty("No loot tracked yet."),
+      finds.length ? el("ul", { "class": "finds" }, finds.map(function (f) {
+        var Q = QUAL[f.q] || QUAL[1];
+        return el("li", null, [el("span", { "class": "sw", style: "background:" + Q.c }), el("span", { text: f.name }),
+          el("span", { "class": "meta", text: [f.mob, f.zone, f.kill ? "kill #" + n(f.kill) : "", day(f.t)].filter(Boolean).join(" · ") })]);
+      })) : null,
+      c.loot.cloth.length ? el("p", { "class": "muted", style: "margin:12px 0 0;font-size:13px",
+        text: "Cloth: " + c.loot.cloth.map(function (x) { return x.name.replace(" Cloth", "") + " " + n(x.value); }).join(" · ") }) : null
+    ]));
+
+    // most hunted
+    box.appendChild(panel("Most hunted", false, [barList(c.kills, n, function (r) { return r.name + ": " + n(r.value) + " kills"; }) || empty("No kills yet.")]));
+
+    // professions & skills
+    var skills = c.skills.slice(0, 8).map(function (x) { return { name: x.name, value: x.rank }; });
+    box.appendChild(panel("Skills", false, [barList(skills, function (v) { return v + " / 300"; }, function (r) { return r.name + " " + r.value + " of 300"; }, 300) || empty("Skills show up after their first skill-up.")]));
+
+    // gathering
+    var g = Object.keys(c.gathering);
+    box.appendChild(panel("Gathering", false, g.length ? g.map(function (k) {
+      var G = c.gathering[k];
+      return el("div", { style: "margin-bottom:12px" }, [
+        el("p", { style: "margin:0 0 8px;font-weight:600", text: k + " · " + n(G.nodes) + (k === "Fishing" ? " catches" : " nodes") }),
+        barList(G.items, n)
+      ]);
+    }) : [empty("No gathering yet.")]));
+
+    // recent activity
+    var feed = c.feed.slice().reverse();
+    box.appendChild(panel("Recent activity", true, [feed.length ? el("ul", { "class": "feed" }, feed.map(function (e) {
+      return el("li", null, [el("time", { text: when(e.t) }), el("span", { text: e.x })]);
+    })) : empty("Nothing yet.")]));
+  }
+
+  function renderDuo() {
+    var box = document.getElementById("duo");
+    box.textContent = "";
+    if (!DATA.duo || !DATA.duo.length) return;
+    // my account totals in the same shape duo mode shares
+    var mine = { p: 0, k: 0, q: 0, d: 0, lv: 0, gl: 0, g: 0, b: 0, nd: 0 };
+    DATA.chars.forEach(function (c) {
+      mine.p += c.played; mine.k += c.stats.kills; mine.q += c.stats.quests; mine.d += c.stats.deaths;
+      mine.lv += c.stats.levels; mine.gl += c.stats.goldLooted;
+      mine.g += c.loot.q[2] || 0; mine.b += c.loot.q[3] || 0;
+      Object.keys(c.gathering).forEach(function (k) { mine.nd += c.gathering[k].nodes; });
+    });
+    DATA.duo.forEach(function (P) {
+      var T = P.together || {}, A = P.acct || {};
+      var nick = P.nick || "Partner";
+      var head = el("div", { "class": "panel wide" }, [
+        el("div", { "class": "duohead" }, [el("h2", { text: "Duo with " + nick }), el("span", { "class": "muted", text: "paired since " + day(P.added) })]),
+        el("p", { "class": "muted", style: "margin:0 0 14px", text: "Their characters: " + P.chars.map(function (c) { return c.name + " (" + cap(c["class"]) + " " + c.level + ")"; }).join(", ") }),
+        el("div", { "class": "kv" }, [["Time together", dur(T.time)], ["Kills together", n(T.kills)], ["Quests together", n(T.quests)], ["Levels together", n(T.levels)]]
+          .map(function (x) { return el("div", null, [el("b", { text: x[1] }), el("span", { text: x[0] })]); }))
+      ]);
+      box.appendChild(head);
+
+      var ROWS = [["Time played", "p", dur], ["Kills", "k", n], ["Quests", "q", n], ["Levels gained", "lv", n],
+        ["Greens", "g", n], ["Blues", "b", n], ["Nodes gathered", "nd", n], ["Gold looted", "gl", gold], ["Deaths", "d", n, true]];
+      var score = el("ul", { "class": "score" }, ROWS.map(function (R) {
+        var a = mine[R[1]] || 0, b = Number(A[R[1]]) || 0, max = Math.max(a, b) || 1, fmt = R[2];
+        var aLead = R[3] ? a < b : a > b, bLead = R[3] ? b < a : b > a;
+        function line(v, color, lead, who) {
+          return el("div", { "class": "ln", "data-tip": who + " · " + R[0] + ": " + fmt(v) }, [
+            el("span", { "class": "tr" }, [el("span", { "class": "fl", style: "display:block;background:" + color + ";width:" + (100 * v / max) + "%" })]),
+            el("span", { "class": "vl" + (lead ? " lead" : ""), text: fmt(v) })
+          ]);
+        }
+        return el("li", null, [el("span", { text: R[0] + (R[3] ? " (fewer wins)" : "") }),
+          el("div", { "class": "pair" }, [line(a, "var(--you)", aLead, "You"), line(b, "var(--her)", bLead, nick)])]);
+      }));
+      box.appendChild(panel("Head to head, all characters", false, [
+        el("div", { "class": "legend" }, [
+          el("span", null, [el("span", { "class": "sw", style: "background:var(--you);box-shadow:none" }), "You"]),
+          el("span", null, [el("span", { "class": "sw", style: "background:var(--her);box-shadow:none" }), nick])
+        ]), score]));
+
+      var feed = (P.feed || []).slice().reverse();
+      box.appendChild(panel(nick + "'s highlights", false, [feed.length ? el("ul", { "class": "feed" }, feed.map(function (e) {
+        return el("li", null, [el("time", { text: when(e.t) }), el("span", { text: (e.who ? e.who + ": " : "") + e.x })]);
+      })) : empty("Level-ups, rare finds and deaths show up here.")]));
+    });
+  }
+
+  fetch("stats.json").then(function (r) { if (!r.ok) throw 0; return r.json(); }).then(function (d) {
+    DATA = d;
+    document.getElementById("snap").textContent = "Snapshot from " + when(d.snapshot) + " · " + d.chars.length + " characters";
+    var saved = store("fm-char");
+    sel = d.chars.some(function (c) { return c.key === saved; }) ? saved : (d.chars[0] && d.chars[0].key);
+    renderTotals(); renderRoster(); renderDetail(); renderDuo();
+  }).catch(function () {
+    document.getElementById("snap").textContent = "No stats yet. Send Claude your ForeverMetrics.lua saved-variables file to fill this page.";
+  });
+
+  // ---------- get the addon ----------
+  var dlg = document.getElementById("dl-dialog");
+  document.getElementById("open-dl").addEventListener("click", function () {
+    if (dlg.showModal) dlg.showModal(); else dlg.setAttribute("open", "");
+  });
+  document.getElementById("close-dl").addEventListener("click", function () { dlg.close ? dlg.close() : dlg.removeAttribute("open"); });
+  dlg.addEventListener("click", function (e) { if (e.target === dlg && dlg.close) dlg.close(); });
+
+  var downloadsP = (window.claude && window.claude.use) ? window.claude.use("downloads") : Promise.resolve(null);
+  var pkgP = fetch("addon-files.json").then(function (r) { if (!r.ok) throw { code: "fetch" }; return r.json(); });
+  pkgP.then(function (pkg) {
+    if (!pkg.version) return;
+    document.getElementById("ver").textContent = pkg.version;
+    document.getElementById("ver-btn").textContent = "v" + pkg.version;
+    document.getElementById("dl").textContent = "Download ForeverMetrics-" + pkg.version + ".zip";
+  }).catch(function () {});
+
+  var btn = document.getElementById("dl"), status = document.getElementById("status");
+  function say(text, cls) { status.textContent = text; status.className = "status " + (cls || ""); }
+  btn.addEventListener("click", function () {
+    btn.disabled = true;
+    say("Preparing the file…");
+    var name;
+    Promise.all([downloadsP, pkgP.then(function (pkg) {
+      if (!window.JSZip) throw { code: "fetch" };
+      name = pkg.folder + "-" + (pkg.version || "latest") + ".zip";
+      var zip = new JSZip(), dir = zip.folder(pkg.folder);
+      Object.keys(pkg.files).forEach(function (f) { dir.file(f, pkg.files[f]); });
+      return zip.generateAsync({ type: "blob", compression: "DEFLATE" });
+    })]).then(function (res) {
+      if (!res[0]) throw { code: "unavailable" };
+      say("Confirm the download in the prompt.");
+      return res[0].save({ filename: name, data: res[1] });
+    }).then(function () {
+      say("Downloaded. Follow the steps below.", "ok");
+    }).catch(function (e) {
+      var code = e && e.code;
+      if (code === "declined") say("Download cancelled. Click the button to try again.");
+      else if (code === "rate_limited") say("A download prompt is already open. Finish that one first.");
+      else if (code === "fetch") say("The file couldn't be loaded. Reload the page and try again.", "err");
+      else say("Downloads aren't available in this view. Open this page in claude.ai in a browser.", "err");
+    }).then(function () { btn.disabled = false; });
+  });
 })();
 </script>

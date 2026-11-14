@@ -2,3 +2,4 @@ dist/
 __pycache__/
 .DS_Store
 Thumbs.db
+download-page/addon-files.json

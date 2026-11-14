@@ -1,0 +1,183 @@
+<title>Forever Metrics</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one narrow column, a leather "addon card" up top, then two short how-to blocks. Colors echo the addon's own brown + gold theme. */
+:root {
+  --bg: #f3ece1;
+  --panel: #fbf7f0;
+  --ink: #2b2016;
+  --muted: #6e5c48;
+  --gold: #9a6b22;
+  --gold-soft: #e7d2a8;
+  --rule: #dccbb0;
+  --duo: #b8487a;
+  --btn-ink: #fffaf0;
+  --ok: #3f7d3a;
+  --err: #a8382c;
+  --display: "Cinzel", "Trajan Pro", Georgia, serif;
+  --body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #17110b; --panel: #221910; --ink: #f1e6d4; --muted: #b49f84;
+    --gold: #e1b45e; --gold-soft: #4a3820; --rule: #3d2e1d; --duo: #f08bb8;
+    --btn-ink: #1c140b; --ok: #8fd17f; --err: #f08a7c; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #17110b; --panel: #221910; --ink: #f1e6d4; --muted: #b49f84;
+  --gold: #e1b45e; --gold-soft: #4a3820; --rule: #3d2e1d; --duo: #f08bb8;
+  --btn-ink: #1c140b; --ok: #8fd17f; --err: #f08a7c; color-scheme: dark;
+}
+body {
+  background: var(--bg); color: var(--ink); font: 15px/1.6 var(--body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 40px 56px;
+}
+main { max-width: 620px; margin: 0 auto; display: grid; gap: 32px; }
+.card {
+  background: var(--panel); border: 1px solid var(--rule); border-radius: 10px;
+  box-shadow: inset 0 0 0 3px var(--panel), inset 0 0 0 4px var(--gold-soft);
+  padding: 28px 24px; display: grid; gap: 18px;
+}
+.eyebrow { font: 500 12px/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--gold); }
+h1 { font: 700 clamp(28px, 6vw, 38px)/1.1 var(--display); margin: 0; text-wrap: balance; letter-spacing: .01em; }
+.lede { margin: 0; color: var(--muted); max-width: 60ch; }
+.meta { display: flex; flex-wrap: wrap; gap: 8px 18px; font: 13px/1.4 var(--mono); color: var(--muted); }
+.meta b { color: var(--ink); font-weight: 500; }
+.actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; }
+button {
+  font: 600 15px/1 var(--body); color: var(--btn-ink); background: var(--gold);
+  border: 0; border-radius: 6px; padding: 14px 22px; cursor: pointer;
+}
+button:hover { filter: brightness(1.08); }
+button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
+button:disabled { opacity: .55; cursor: default; filter: none; }
+.status { font-size: 14px; color: var(--muted); min-height: 1.4em; }
+.status.ok { color: var(--ok); } .status.err { color: var(--err); }
+.secondary { background: transparent; color: var(--gold); box-shadow: inset 0 0 0 1.5px var(--gold); }
+h2 { font: 600 19px/1.3 var(--display); margin: 0 0 10px; letter-spacing: .02em; }
+section ol { margin: 0; padding-left: 1.3em; display: grid; gap: 8px; }
+section p { margin: 0 0 10px; }
+code { font: 13px/1.4 var(--mono); background: var(--gold-soft); padding: 1px 6px; border-radius: 4px; overflow-wrap: anywhere; }
+.path { display: block; margin-top: 4px; padding: 8px 10px; overflow-x: auto; white-space: nowrap; }
+.duo { color: var(--duo); font-weight: 600; }
+.cmds { display: grid; grid-template-columns: max-content 1fr; gap: 6px 14px; margin: 0; }
+.cmds dt { font: 13px/1.6 var(--mono); color: var(--gold); }
+.cmds dd { margin: 0; min-width: 0; }
+@media (max-width: 440px) { .cmds { grid-template-columns: 1fr; } .cmds dd { margin-bottom: 6px; } }
+</style>
+
+<main>
+  <div class="card">
+    <span class="eyebrow">WoW addon · for the duo</span>
+    <h1>Forever Metrics</h1>
+    <p class="lede">Stats, an activity feed and loot luck for every character, plus <span class="duo">duo mode</span> so you two can see each other's levels, rare finds and a head-to-head scoreboard. New in this version: a redesigned window with a dashboard, a level-up pop-up that lists your new trainer skills, floating gold and loot text, and optional helpers like auto-repair and selling greys.</p>
+    <div class="meta"><span>Version <b id="ver">0.10.1</b></span><span>Size <b>about 60 KB</b></span><span>Folder <b>ForeverMetrics</b></span></div>
+    <div class="actions">
+      <button id="dl" type="button">Download ForeverMetrics-0.10.1.zip</button>
+      <span id="status" class="status" role="status"></span>
+    </div>
+  </div>
+
+  <section>
+    <h2>Install</h2>
+    <ol>
+      <li>Close World of Warcraft.</li>
+      <li>Open your AddOns folder. It's inside your WoW install, for example
+        <code class="path">World of Warcraft\_classic_\Interface\AddOns</code>
+        Use whichever game folder you actually play from.</li>
+      <li>Unzip the download there. You should end up with a <code>ForeverMetrics</code> folder directly inside <code>AddOns</code>, not a folder inside a folder.</li>
+      <li>If an older <code>ForeverMetrics</code> folder is already there, replace it. Your saved stats live elsewhere and stay put.</li>
+      <li>Launch the game and type <code>/fm</code> to open it.</li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>Get updates with one click</h2>
+    <p>The updater downloads the newest version of our addons and swaps out the old folders for you. Set it up once on each PC (Windows only).</p>
+    <ol>
+      <li>Download the updater and unzip it anywhere you'll find it again, like your Documents folder.</li>
+      <li>Double-click <code>Update WoW Addons.bat</code>. The first time, it finds your AddOns folder (or asks you to pick it) and remembers it.</li>
+      <li>Run it again whenever there's an update. If WoW is open, type <code>/reload</code> afterwards.</li>
+    </ol>
+    <div class="actions" style="margin-top:14px">
+      <button id="dl-up" class="secondary" type="button">Download the updater</button>
+      <span id="status-up" class="status" role="status"></span>
+    </div>
+  </section>
+
+  <section>
+    <h2>Pair up for <span class="duo">duo mode</span></h2>
+    <p>Log in while you're both in the guild or grouped. A popup asks whether to add the other person as your duo partner. Click <b>Add partner</b> once on each side and you're linked, alts included.</p>
+    <dl class="cmds">
+      <dt>/fm duo</dt><dd>See your partner and whether they're online</dd>
+      <dt>/fm duo add Name</dt><dd>Send a pairing request if the popup didn't show</dd>
+      <dt>/fm duo name Nickname</dt><dd>Give your partner a nickname</dd>
+      <dt>/fm debug</dt><dd>Show errors in chat if something isn't working</dd>
+    </dl>
+  </section>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script>
+(function () {
+  var downloadsP = (window.claude && window.claude.use) ? window.claude.use("downloads") : Promise.resolve(null);
+  var pkgP = fetch("addon-files.json").then(function (r) {
+    if (!r.ok) throw { code: "fetch" };
+    return r.json();
+  });
+
+  // Show the version from the published files, so the page never lags behind them
+  pkgP.then(function (pkg) {
+    if (!pkg.version) return;
+    document.getElementById("ver").textContent = pkg.version;
+    document.getElementById("dl").textContent = "Download ForeverMetrics-" + pkg.version + ".zip";
+  }).catch(function () {});
+
+  function wire(btnId, statusId, pick, doneText) {
+    var btn = document.getElementById(btnId);
+    var status = document.getElementById(statusId);
+    function say(text, cls) { status.textContent = text; status.className = "status " + (cls || ""); }
+    btn.addEventListener("click", function () {
+      btn.disabled = true;
+      say("Preparing the file…");
+      var name;
+      Promise.all([downloadsP, pkgP.then(function (pkg) {
+        if (!window.JSZip) throw { code: "fetch" };
+        var part = pick(pkg);
+        name = part.filename;
+        var zip = new JSZip();
+        var dir = zip.folder(part.folder);
+        Object.keys(part.files).forEach(function (f) { dir.file(f, part.files[f]); });
+        return zip.generateAsync({ type: "blob", compression: "DEFLATE" });
+      })]).then(function (res) {
+        if (!res[0]) throw { code: "unavailable" };
+        say("Confirm the download in the prompt.");
+        return res[0].save({ filename: name, data: res[1] });
+      }).then(function () {
+        say(doneText, "ok");
+      }).catch(function (e) {
+        var code = e && e.code;
+        if (code === "declined") say("Download cancelled. Click the button to try again.");
+        else if (code === "rate_limited") say("A download prompt is already open. Finish that one first.");
+        else if (code === "fetch") say("The file couldn't be loaded. Reload the page and try again.", "err");
+        else say("Downloads aren't available in this view. Open this page in claude.ai in a browser.", "err");
+      }).then(function () { btn.disabled = false; });
+    });
+  }
+
+  wire("dl", "status", function (pkg) {
+    return { folder: pkg.folder, files: pkg.files, filename: pkg.folder + "-" + (pkg.version || "latest") + ".zip" };
+  }, "Downloaded. Follow the install steps below.");
+
+  wire("dl-up", "status-up", function (pkg) {
+    if (!pkg.updater) throw { code: "fetch" };
+    return { folder: pkg.updater.folder, files: pkg.updater.files, filename: pkg.updater.folder + ".zip" };
+  }, "Downloaded. Unzip it, then double-click Update WoW Addons.bat.");
+})();
+</script>

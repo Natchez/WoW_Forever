@@ -560,12 +560,12 @@ local function show(data, keepAnim)
       end
       if #list == 0 then
         modal.skillsHdr:SetText("New skills")
-        modal.foot:SetText("|cffa8977aNothing new this level.|r")
+        modal.foot:SetText("|cffa8977aNothing new this level, and your upcoming skills aren't known yet. Open your class trainer, then type /fm levelup check.|r")
         modal.foot:ClearAllPoints(); modal.foot:SetPoint("TOPLEFT", 22, y); modal.foot:Show()
         y = y - modal.foot:GetStringHeight() - 6
       else
         if upcoming then
-          modal.skillsHdr:SetText(("Nothing new this level. Next up, level %d:"):format(upcoming))
+          modal.skillsHdr:SetText(("New skills at level %d"):format(upcoming))
         else
           modal.skillsHdr:SetText(("New this level (%d)"):format(#list))
         end
@@ -844,6 +844,25 @@ function FM:LevelUpCommand(rest)
       print(("  Level %d: %s"):format(L, #names > 0 and table.concat(names, ", ") or "nothing found"))
     end
     print("  (* = already learned)")
+    -- With the trainer window open: what its first few entries look like
+    local total = GetNumTrainerServices and tonumber(safe(GetNumTrainerServices())) or 0
+    if total > 0 then
+      print(("  Open trainer: %d entries. First few (name | rank | type | level | tooltip level | spell ID):"):format(total))
+      local shown = 0
+      for i = 1, total do
+        if shown >= 5 then break end
+        local ok, name, rank, category = pcall(GetTrainerServiceInfo, i)
+        if ok and category ~= "header" then
+          shown = shown + 1
+          local req = GetTrainerServiceLevelReq and select(2, pcall(GetTrainerServiceLevelReq, i))
+          local ok2, id, tipLevel = pcall(serviceDetails, i)
+          print(("    %s | %s | %s | %s | %s | %s"):format(tostring(safe(name)), tostring(safe(rank)), tostring(category),
+            tostring(safe(req)), ok2 and tostring(tipLevel) or ("error: " .. tostring(id)), ok2 and tostring(id) or "-"))
+        end
+      end
+    else
+      print("  Open your class trainer and run this again to see what it reports.")
+    end
   elseif rest == "test" then
     local level = UnitLevel("player")
     local skills, cost = skillsAt(level)

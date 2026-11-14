@@ -21,6 +21,11 @@ local modal, pending
 local showSkillTooltip -- defined below
 local baseStats = {}
 
+local function safe(v)
+  if issecretvalue and issecretvalue(v) then return nil end
+  return v
+end
+
 local function say(msg) print("|cffe8c27aForever Metrics|r " .. msg) end
 
 local function money(c)
@@ -45,8 +50,8 @@ end
 -- value UnitStat returns, so the difference across a ding is the level gain.
 local function snapshotStats()
   for i = 1, 5 do
-    local base = UnitStat("player", i)
-    baseStats[i] = base
+    -- hidden in combat sometimes; then this level's stat gains are skipped
+    baseStats[i] = tonumber(safe(UnitStat("player", i)))
   end
 end
 
@@ -62,11 +67,6 @@ local function trainerDB()
 end
 
 local FILTERS = { "available", "unavailable", "used" }
-
-local function safe(v)
-  if issecretvalue and issecretvalue(v) then return nil end
-  return v
-end
 
 -- "Requires Level %d" -> a pattern that finds the number anywhere in a line
 local REQ_PAT = (type(ITEM_MIN_LEVEL) == "string" and
@@ -747,35 +747,40 @@ end
 function H.LEARNED_SPELL_IN_SKILL_LINE(id) onLearned(id) end -- modern clients
 function H.LEARNED_SPELL_IN_TAB(id) onLearned(id) end        -- classic clients
 
-function H.PLAYER_LEVEL_UP(level, hp, mp, talents)
-  level = tonumber(level) or UnitLevel("player")
+-- Core calls this once for every level gained (see FM:CheckLevel), with
+-- live = false for levels caught up at login, which get no pop-up.
+function FM:OnLevelGained(level, live, info)
+  if not live then return end
+  info = info or {}
   lastDing = { level = level, t = GetTime() }
   dingAt = GetTime()
   pcall(hookBlizzBanner)
   local c = FM:Char()
-  -- Core records how long the previous level took (it runs on the same event)
   C_Timer.After(0.5, function()
-    local stats = {}
-    for i = 1, 5 do
-      local now = UnitStat("player", i)
-      stats[i] = (now and baseStats[i]) and (now - baseStats[i]) or 0
-    end
-    snapshotStats()
-    pcall(scanBook)
-    -- include anything learned in the moments around the ding
-    local extra = {}
-    for _, r in ipairs(recentLearned) do
-      if GetTime() - r.t < 5 then extra[#extra + 1] = r.sk end
-    end
-    local skills, cost = skillsAt(level, extra)
-    local _, powerToken = UnitPowerType("player")
-    local powerName = powerToken and _G[powerToken] or nil
-    if type(powerName) ~= "string" then powerName = nil end
-    celebrate({
-      level = level, hp = tonumber(hp), mp = tonumber(mp), talents = tonumber(talents),
-      stats = stats, skills = skills, cost = cost, powerName = powerName,
-      took = c and c.levelTimes and c.levelTimes[level],
-    })
+    local ok, err = pcall(function()
+      local stats = {}
+      for i = 1, 5 do
+        local now = tonumber(safe(UnitStat("player", i)))
+        stats[i] = (now and baseStats[i]) and (now - baseStats[i]) or 0
+      end
+      snapshotStats()
+      pcall(scanBook)
+      -- include anything learned in the moments around the ding
+      local extra = {}
+      for _, r in ipairs(recentLearned) do
+        if GetTime() - r.t < 5 then extra[#extra + 1] = r.sk end
+      end
+      local skills, cost = skillsAt(level, extra)
+      local _, powerToken = UnitPowerType("player")
+      local powerName = powerToken and safe(_G[powerToken]) or nil
+      if type(powerName) ~= "string" then powerName = nil end
+      celebrate({
+        level = level, hp = info.hp, mp = info.mp, talents = info.talents,
+        stats = stats, skills = skills, cost = cost, powerName = powerName,
+        took = c and c.levelTimes and c.levelTimes[level],
+      })
+    end)
+    if not ok then print("|cffff5555ForeverMetrics level-up error|r", err) end
   end)
 end
 

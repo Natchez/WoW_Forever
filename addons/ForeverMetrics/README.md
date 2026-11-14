@@ -1,4 +1,4 @@
-# Forever Metrics (v0.11.4)
+# Forever Metrics (v0.11.5)
 
 A RuneMetrics-style tracker for World of Warcraft: Forever. It keeps an activity feed and stats for every character, and you can swap between characters or view totals for your whole account.
 
@@ -78,6 +78,7 @@ When you ding, a pop-up shows your new level, how long the last level took, your
 
 - **New skills:** the list comes from three places: your class trainer (visit it once and it remembers the full list, including skills you're too low for), your spellbook (every spell it lists with the level it's learned at), and any spell you learn right around the ding. Each skill shows **learned**, its training cost, or **at trainer**. On a level with nothing new, it shows the next level that brings new skills, and what they are (v0.11.3). This keeps it accurate to Forever, with no hard-coded spell lists.
 - **In combat:** if you level up mid-fight, the pop-up waits until combat ends.
+- **No missed levels (v0.11.5):** levels are tracked by comparing your real level with the last one recorded, after every level event and at the end of each fight. So a ding from a kill, where Forever hides the event's values, is still recorded. If you gained levels while the addon wasn't running, they're logged at login (without a pop-up).
 - **Blizzard's banner:** the pop-up waits until Blizzard's own "You've Reached Level N" banner has finished (up to 8 seconds), so they don't overlap. Turn on **Hide Blizzard's level-up banner** under Options > Interface > Level Up to skip Blizzard's and show ours right away (v0.11.4).
 - **Closing it:** click "Nice!", or press Esc, A, or B. It also fades out on its own after 30 seconds, and you can drag it to move it.
 - **Replay:** to see your last level-up again, click **Replay** on the Home dashboard or under Options > Interface > Level Up, or type `/fm levelup last`. Each character remembers its own last ding, even when the pop-up is turned off. If nothing is saved yet, it rebuilds the pop-up for your current level, without stat gains.

@@ -318,6 +318,44 @@ function FM:OnSetting(key, fn)
   table.insert(settingHooks[key], fn)
 end
 
+local function currentLevel()
+  local l = safe(UnitLevel("player"))
+  return type(l) == "number" and l > 0 and l or nil
+end
+
+-- hint: the level from an event (may be hidden); live: it happened just now
+-- (false = caught up at login); extra: hp/mp/talents from the event, if readable.
+-- Tells other files through FM:OnLevelGained(level, live, extra).
+function FM:CheckLevel(hint, live, extra)
+  local c = self.char
+  if not c then return end
+  local now = currentLevel()
+  local h = tonumber(safe(hint))
+  if h and (not now or h > now) then now = h end
+  if not now then return end
+  if not c.level or now <= c.level then
+    c.level = c.level or now
+    return
+  end
+  for L = c.level + 1, now do
+    c.level = L
+    c.stats.levels = c.stats.levels + 1
+    if self.session then self.session.levels = self.session.levels + 1 end
+    if live then
+      c.levelTimes[L] = c.played - (c.levelStart or c.played)
+      c.levelStart = c.played
+      self:Log("level", "Reached level " .. L)
+    else
+      c.levelStart = c.played
+      self:Log("level", ("Reached level %d (while Forever Metrics wasn't running)"):format(L))
+    end
+    if self.OnLevelGained then
+      local ok, err = pcall(self.OnLevelGained, self, L, live, L == now and extra or nil)
+      if not ok then print("|cffff5555ForeverMetrics level-up error|r", err) end
+    end
+  end
+end
+
 function FM:Log(kind, text)
   local feed = self.char.feed
   local entry = { t = time(), k = kind, x = text }
@@ -346,6 +384,7 @@ function H.PLAYER_LOGIN()
   local name, realm = UnitName("player"), GetRealmName()
   FM.key = name .. "-" .. realm
   local db = ForeverMetricsDB.chars
+  local isNew = not db[FM.key]
   db[FM.key] = db[FM.key] or newChar(name, realm)
   local c = db[FM.key]
   ensureGather(c)
@@ -355,7 +394,6 @@ function H.PLAYER_LOGIN()
 
   local _, classFile = UnitClass("player")
   c.class = classFile
-  c.level = UnitLevel("player")
   c.lastSeen = time()
   c.levelStart = c.levelStart or c.played
 
@@ -364,6 +402,14 @@ function H.PLAYER_LOGIN()
   FM.session = { start = time(), xp = 0, kills = 0, nodes = 0, levels = 0,
                  deaths = 0, quests = 0, goldLooted = 0, skillUps = 0,
                  startMoney = GetMoney(), mobs = {}, bestLoot = nil, bestQ = 0 }
+
+  -- A character we've tracked before that's now higher than we last saw
+  -- leveled while the addon wasn't recording: log those levels now.
+  if isNew then
+    c.level = currentLevel() or c.level
+  else
+    FM:CheckLevel(nil, false)
+  end
 
   C_Timer.NewTicker(TICK, function()
     c.played = c.played + TICK
@@ -387,15 +433,19 @@ function H.PLAYER_XP_UPDATE()
   end
 end
 
-function H.PLAYER_LEVEL_UP(level)
-  local c = FM.char
-  c.level = level
-  c.stats.levels = c.stats.levels + 1
-  FM.session.levels = FM.session.levels + 1
-  c.levelTimes[level] = c.played - (c.levelStart or c.played)
-  c.levelStart = c.played
-  FM:Log("level", "Reached level " .. level)
+-- Level tracking. Forever can hide event values in combat (a ding from a
+-- kill), so the level-up event's numbers can't be trusted on their own.
+-- Instead every level event, and the end of combat, compares the real
+-- level with the last one recorded and logs each level gained, once.
+function H.PLAYER_LEVEL_UP(level, hp, mp, talents)
+  local extra = { hp = tonumber(safe(hp)), mp = tonumber(safe(mp)), talents = tonumber(safe(talents)) }
+  FM:CheckLevel(level, true, extra)
+  -- UnitLevel can lag the event by a moment
+  C_Timer.After(1, function() FM:CheckLevel(level, true, extra) end)
 end
+function H.PLAYER_LEVEL_CHANGED(_, newLevel) FM:CheckLevel(newLevel, true) end
+function H.UNIT_LEVEL(unit) if unit == "player" then FM:CheckLevel(nil, true) end end
+function H.PLAYER_REGEN_ENABLED() FM:CheckLevel(nil, true) end
 
 function H.PLAYER_MONEY()
   local m = GetMoney()

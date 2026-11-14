@@ -1,4 +1,4 @@
-# Forever Metrics (v0.10.1)
+# Forever Metrics (v0.11.0)
 
 A RuneMetrics-style tracker for World of Warcraft: Forever. It keeps an activity feed and stats for every character, and you can swap between characters or view totals for your whole account.
 
@@ -80,6 +80,8 @@ When you ding, a pop-up shows your new level, how long the last level took, your
 - **In combat:** if you level up mid-fight, the pop-up waits until combat ends.
 - **Closing it:** click "Nice!", or press Esc, A, or B. It also fades out on its own after 30 seconds, and you can drag it to move it.
 - **Replay:** to see your last level-up again, click **Replay** on the Home dashboard or under Options > Interface > Level Up, or type `/fm levelup last`. Each character remembers its own last ding, even when the pop-up is turned off. If nothing is saved yet, it rebuilds the pop-up for your current level, without stat gains.
+- **Skill tooltips (v0.11.0):** each new skill shows its icon, and hovering it shows the spell's tooltip. Skills saved before v0.11.0 show a short summary until you visit your trainer again. The pop-up stays open while your mouse is over it.
+- **Checking the skill list:** `/fm levelup trainer` says how many trainer skills are saved and lists what unlocks at your current level and the next two. With `/fm debug` on, opening your trainer prints what was read.
 - `/fm levelup test` previews it, and `/fm levelup` turns it on or off.
 
 ## Combat text (new in v0.10.0)
@@ -88,6 +90,9 @@ Options > **Combat Text** has two tabs.
 **Floating gains** is our own floating text. It rises above your character, one item at a time so nothing overlaps:
 - Money (+1g 20s), items looted with their icon (you choose the quality threshold), reputation (+25 Stormwind), skill-ups (+1 Mining (76)), and optionally XP
 - Quick gains, like several coins or kill XP plus quest XP, combine into one total
+- Spells you cast, with their icon and name (v0.11.0)
+- Optional spell hits on your target, with the spell's icon and the damage (v0.11.0, off by default). The game hides which spell did the damage, so this is a best guess: the first hit on your target within a couple of seconds of a harmful cast is shown with that spell. Now and then it may count a partner's hit, and damage-over-time ticks aren't shown.
+- New lines come in at the bottom and push older ones up, with a gap between them. "Space between lines" sets the gap (v0.11.0).
 - Options for text size and for hiding it during combat
 - To move it, use Edit Mode (the "Forever Metrics Floating Text" box) or `/fm fct move`. `/fm fct reset` puts it back.
 - `/fm fct test` shows samples, and `/fm fct` turns it on or off.
@@ -99,7 +104,7 @@ Options > **Combat Text** has two tabs.
 
 These are game settings, so WoW saves them itself. Options this client doesn't have are hidden, and they can't be changed in combat.
 
-**No custom damage text:** Forever blocks addons from reading the combat log, so custom damage numbers (scroll areas, merged hits, crit sizing) aren't possible. For damage numbers, use the Blizzard tab.
+**Limited damage text:** Forever blocks addons from reading the combat log, so full custom damage numbers (every hit, DoT ticks, scroll areas) aren't possible. For all your damage numbers, use the Blizzard tab.
 
 ## Chat (new in v0.8.0)
 - **Hide chat buttons (keeps the tabs):** hides the chat menu, channel, voice, and social buttons, each chat window's scroll buttons and bar, and the combat log filter bar. The chat tabs stay visible. The buttons stay hidden even when chat fades in on hover, and turning the option off brings them back.

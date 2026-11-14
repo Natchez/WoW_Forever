@@ -18,6 +18,7 @@ local MAX_SKILLS = 8
 local AUTO_CLOSE = 30   -- seconds
 
 local modal, pending
+local showSkillTooltip -- defined below
 local baseStats = {}
 
 local function say(msg) print("|cffe8c27aForever Metrics|r " .. msg) end
@@ -62,48 +63,142 @@ end
 
 local FILTERS = { "available", "unavailable", "used" }
 
+local function safe(v)
+  if issecretvalue and issecretvalue(v) then return nil end
+  return v
+end
+
+-- "Requires Level %d" -> a pattern that finds the number anywhere in a line
+local REQ_PAT = (type(ITEM_MIN_LEVEL) == "string" and
+  ITEM_MIN_LEVEL:gsub("([%(%)%.%%%+%-%*%?%[%]%^%$])", "%%%1"):gsub("%%%%d", "(%%d+)")) or "Requires Level (%d+)"
+
+local function levelFromLines(lines)
+  for _, t in ipairs(lines) do
+    local n = t:match(REQ_PAT)
+    if n then return tonumber(n) end
+  end
+end
+
+-- The trainer's tooltip for a service names the spell (so we can show its
+-- real tooltip later, when the trainer is closed) and says "Requires Level N"
+-- (a fallback if the level API comes back empty).
+local scanTip
+local function serviceDetails(i)
+  -- Modern clients: tooltip data without drawing a tooltip
+  if C_TooltipInfo and C_TooltipInfo.GetTrainerService then
+    local ok, data = pcall(C_TooltipInfo.GetTrainerService, i)
+    if ok and type(data) == "table" then
+      local lines = {}
+      for _, l in ipairs(data.lines or {}) do
+        local t = safe(l.leftText)
+        if type(t) == "string" then lines[#lines + 1] = t end
+      end
+      local id = safe(data.id)
+      return type(id) == "number" and id or nil, levelFromLines(lines)
+    end
+  end
+  -- Older clients: fill a hidden tooltip and read it back
+  if not scanTip then
+    scanTip = CreateFrame("GameTooltip", "ForeverMetricsScanTip", UIParent, "GameTooltipTemplate")
+  end
+  scanTip:SetOwner(UIParent, "ANCHOR_NONE")
+  scanTip:ClearLines()
+  if not scanTip.SetTrainerService or not pcall(scanTip.SetTrainerService, scanTip, i) then return end
+  local id
+  if scanTip.GetSpell then
+    local _, sid = scanTip:GetSpell()
+    id = safe(sid)
+  end
+  local lines = {}
+  for l = 2, scanTip:NumLines() do
+    local fs = _G["ForeverMetricsScanTipTextLeft" .. l]
+    local t = fs and safe(fs:GetText())
+    if type(t) == "string" then lines[#lines + 1] = t end
+  end
+  scanTip:Hide()
+  return type(id) == "number" and id or nil, levelFromLines(lines)
+end
+
+local function spellIcon(id)
+  if not id then return nil end
+  if C_Spell and C_Spell.GetSpellTexture then return C_Spell.GetSpellTexture(id) end
+  if GetSpellTexture then return GetSpellTexture(id) end
+end
+
+local scanning = false
+
 local function scanTrainer()
+  if scanning then return end
   if IsTradeskillTrainer and IsTradeskillTrainer() then return end -- professions aren't class skills
-  if not GetNumTrainerServices then return end
+  if not GetNumTrainerServices then
+    if FM.debug then say("trainer scan: this client has no trainer API.") end
+    return
+  end
+  scanning = true
 
   -- Show every service while we read, then put the player's filters back
   local saved = {}
   if GetTrainerServiceTypeFilter and SetTrainerServiceTypeFilter then
     for _, f in ipairs(FILTERS) do
       saved[f] = GetTrainerServiceTypeFilter(f)
-      SetTrainerServiceTypeFilter(f, 1)
+      pcall(SetTrainerServiceTypeFilter, f, 1)
     end
   end
+  -- Collapsed sections hide their skills from the list, so open them all
+  if ExpandTrainerSkillLine then pcall(ExpandTrainerSkillLine, 0) end
 
   local T = trainerDB()
-  local found = 0
-  for i = 1, GetNumTrainerServices() do
+  local total, found, noLevel = GetNumTrainerServices() or 0, 0, 0
+  for i = 1, total do
     local name, rank, category = GetTrainerServiceInfo(i)
+    name, rank = safe(name), safe(rank)
     if name and category ~= "header" then
-      local req = GetTrainerServiceLevelReq and GetTrainerServiceLevelReq(i)
+      local id, tipLevel = serviceDetails(i)
+      local req = GetTrainerServiceLevelReq and safe(GetTrainerServiceLevelReq(i))
+      if not req or req <= 0 then req = tipLevel end
       if req and req > 0 then
         local key = name .. "|" .. (rank or "")
         T.spells[key] = {
-          n = name, r = rank ~= "" and rank or nil, lv = req,
-          icon = GetTrainerServiceIcon and GetTrainerServiceIcon(i),
-          cost = GetTrainerServiceCost and GetTrainerServiceCost(i) or 0,
+          n = name, r = (rank and rank ~= "") and rank or nil, lv = req, id = id,
+          icon = (GetTrainerServiceIcon and safe(GetTrainerServiceIcon(i))) or spellIcon(id),
+          cost = (GetTrainerServiceCost and safe(GetTrainerServiceCost(i))) or 0,
         }
         found = found + 1
+      else
+        noLevel = noLevel + 1
       end
     end
   end
 
   if SetTrainerServiceTypeFilter then
     for _, f in ipairs(FILTERS) do
-      if saved[f] ~= nil then SetTrainerServiceTypeFilter(f, (saved[f] and saved[f] ~= 0) and 1 or 0) end
+      if saved[f] ~= nil then pcall(SetTrainerServiceTypeFilter, f, (saved[f] and saved[f] ~= 0) and 1 or 0) end
     end
   end
+  scanning = false
 
+  if FM.debug then
+    say(("trainer scan: %d entries, %d skills saved, %d with no level found."):format(total, found, noLevel))
+  end
   if found > 0 then
     local first = not T.scanned
     T.scanned = time()
     if first then say("remembered your trainer's skill list. Level-ups will now show what you can train.") end
   end
+end
+
+-- The list can still be filling in when the trainer opens, and changing the
+-- filters refreshes it, so scan again shortly after any update.
+local rescanQueued = false
+local function queueScan()
+  if scanning or rescanQueued then return end
+  rescanQueued = true
+  C_Timer.After(0.5, function()
+    rescanQueued = false
+    local ok, err = pcall(scanTrainer)
+    scanning = false
+    if not ok and FM.debug then print("|cffff5555ForeverMetrics trainer scan error|r", err) end
+  end)
 end
 
 local function skillsAt(level)
@@ -116,6 +211,27 @@ local function skillsAt(level)
   end
   table.sort(list, function(a, b) return a.n < b.n end)
   return list, cost
+end
+
+-- Tooltip for a skill row. With a spell ID it's the game's own spell
+-- tooltip; skills saved before v0.11.0 have no ID until the trainer is
+-- visited again, so they get a short summary instead.
+showSkillTooltip = function(owner, s)
+  if not s then return end
+  GameTooltip:SetOwner(owner, "ANCHOR_RIGHT")
+  local shown = false
+  if s.id and GameTooltip.SetSpellByID then
+    shown = pcall(GameTooltip.SetSpellByID, GameTooltip, s.id)
+  end
+  if not shown then
+    GameTooltip:ClearLines()
+    GameTooltip:AddLine(s.n, 1, 1, 1)
+    if s.r then GameTooltip:AddLine(s.r, 0.66, 0.59, 0.48) end
+    GameTooltip:AddLine(("Learn at level %d"):format(s.lv or 0), 0.91, 0.76, 0.48)
+    GameTooltip:AddLine("Visit your trainer again to see the full description here.", 0.6, 0.6, 0.6, true)
+  end
+  if (s.cost or 0) > 0 then GameTooltip:AddLine("Training cost: " .. money(s.cost), 1, 1, 1) end
+  GameTooltip:Show()
 end
 
 ---------------------------------------------------------------------------
@@ -177,6 +293,13 @@ local function build()
     r.name:SetJustifyH("LEFT")
     r.cost = r:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     r.cost:SetPoint("RIGHT")
+    -- Hover a skill to see its full tooltip
+    local hl = r:CreateTexture(nil, "HIGHLIGHT")
+    hl:SetAllPoints()
+    hl:SetColorTexture(FM.THEME.hl[1], FM.THEME.hl[2], FM.THEME.hl[3], FM.THEME.hl[4])
+    r:EnableMouse(true)
+    r:SetScript("OnEnter", function(self) showSkillTooltip(self, self.skill) end)
+    r:SetScript("OnLeave", function() GameTooltip:Hide() end)
     modal.rows[i] = r
   end
 
@@ -220,6 +343,11 @@ local function animate(self, elapsed)
   local scale = 0.75 + 0.25 * ease + (g < 1 and 0.08 * math.sin(g * math.pi) or 0)
   self:SetScale(scale)
   local a = math.max(0.05, ease)
+  -- Stay open while the mouse is over it (e.g. reading a skill tooltip)
+  if t > AUTO_CLOSE and self:IsMouseOver() then
+    self.age = AUTO_CLOSE
+    t = AUTO_CLOSE
+  end
   if t > AUTO_CLOSE then
     a = 1 - (t - AUTO_CLOSE) / 1.5
     if a <= 0 then self:Hide(); return end
@@ -276,7 +404,8 @@ local function show(data)
       for i, s in ipairs(data.skills) do
         local r = modal.rows[i]
         if not r then break end
-        r.icon:SetTexture(s.icon or "Interface\\Icons\\INV_Misc_QuestionMark")
+        r.skill = s
+        r.icon:SetTexture(s.icon or spellIcon(s.id) or "Interface\\Icons\\INV_Misc_QuestionMark")
         r.name:SetText(s.r and ("%s |cffa8977a(%s)|r"):format(s.n, s.r) or s.n)
         r.cost:SetText((s.cost or 0) > 0 and money(s.cost) or "|cff7fd36bfree|r")
         r:ClearAllPoints(); r:SetPoint("TOPLEFT", 22, y); r:Show()
@@ -308,7 +437,7 @@ local function remember(data)
   for k, v in pairs(data) do copy[k] = v end
   copy.skills = {}
   for i, s in ipairs(data.skills or {}) do
-    copy.skills[i] = { n = s.n, r = s.r, lv = s.lv, icon = s.icon, cost = s.cost }
+    copy.skills[i] = { n = s.n, r = s.r, lv = s.lv, icon = s.icon, cost = s.cost, id = s.id }
   end
   copy.t = time()
   c.lastLevelUp = copy
@@ -383,7 +512,8 @@ function H.PLAYER_REGEN_ENABLED()
   end
 end
 
-function H.TRAINER_SHOW() scanTrainer() end
+function H.TRAINER_SHOW() scanTrainer(); queueScan() end
+function H.TRAINER_UPDATE() queueScan() end
 
 ev:SetScript("OnEvent", function(_, event, ...)
   local ok, err = pcall(H[event], ...)
@@ -398,6 +528,26 @@ for event in pairs(H) do pcall(ev.RegisterEvent, ev, event) end
 function FM:LevelUpCommand(rest)
   if rest == "last" or rest == "replay" then
     FM:ReplayLevelUp()
+  elseif rest == "trainer" then
+    -- What the trainer cache holds, to check the skill list is working
+    local T = trainerDB()
+    local n, withId = 0, 0
+    for _, sp in pairs(T.spells) do
+      n = n + 1
+      if sp.id then withId = withId + 1 end
+    end
+    if not T.scanned then
+      say("no trainer skills saved for this class yet. Open your class trainer once.")
+    else
+      say(("%d trainer skills saved (%d can show a tooltip), last read %s."):format(n, withId, date("%m/%d %H:%M", T.scanned)))
+      local lvl = UnitLevel("player")
+      for _, L in ipairs({ lvl, lvl + 1, lvl + 2 }) do
+        local list = skillsAt(L)
+        local names = {}
+        for _, sp in ipairs(list) do names[#names + 1] = sp.r and (sp.n .. " (" .. sp.r .. ")") or sp.n end
+        print(("  Level %d: %s"):format(L, #names > 0 and table.concat(names, ", ") or "nothing new"))
+      end
+    end
   elseif rest == "test" then
     local level = UnitLevel("player")
     local skills, cost = skillsAt(level)
@@ -408,6 +558,6 @@ function FM:LevelUpCommand(rest)
     })
   else
     FM:SetSetting("levelModal", not FM:GetSetting("levelModal"))
-    say("level-up pop-up " .. (FM:GetSetting("levelModal") and "on" or "off") .. "  (/fm levelup last replays your last one, /fm levelup test previews)")
+    say("level-up pop-up " .. (FM:GetSetting("levelModal") and "on" or "off") .. "  (/fm levelup last replays your last one, /fm levelup test previews, /fm levelup trainer lists saved skills)")
   end
 end

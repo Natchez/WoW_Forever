@@ -1,22 +1,28 @@
 -- Forever Metrics: floating gains
--- Money, loot, reputation, skill-ups (and optionally XP) float up above your
--- character, one after another so they never overlap. These all come from
--- chat/system events, which addons can read even where combat data is hidden.
+-- Money, loot, reputation, skill-ups, spells you cast (and optionally XP)
+-- float up above your character. New lines come in at the bottom and push
+-- older ones up, with a gap between lines ("Space between lines" option).
+-- These come from chat/system/cast events, which addons can read even where
+-- combat data is hidden.
 --
 -- Position: it joins Edit Mode like the feed and XP pill ("Forever Metrics
 -- Floating Text"), or use /fm fct move.
 --
 -- Note: Forever forbids addons from registering COMBAT_LOG_EVENT_UNFILTERED
 -- (it triggers the "blocked from an action only available to the Blizzard
--- UI" popup, which pcall can't catch). So there is no custom damage text;
--- damage numbers are left to Blizzard's own combat text CVars.
+-- UI" popup, which pcall can't catch). So damage can't be read per spell.
+-- The optional "spell hits" text guesses instead: the first hit on your
+-- target shortly after you cast a harmful spell is shown with that spell's
+-- icon (UNIT_COMBAT). It's only registered while that option is on.
 
 local ADDON, ns = ...
 local FM = ns.FM
 
 local DUR = 2.6          -- seconds each text floats
-local RISE = 80          -- pixels it rises
-local GAP = 0.28         -- seconds between texts leaving the queue
+local DRIFT = 40         -- pixels each text drifts up on its own
+local GAP = 0.12         -- seconds between texts leaving the queue
+local MAX_LINES = 8      -- more than this and the oldest fade out early
+local HIT_WINDOW = 2.5   -- seconds after a cast that a hit on your target counts as that spell
 local MERGE = 0.35       -- quick money/xp gains combine into one
 local DEFAULT_POINT = { "CENTER", "UIParent", "CENTER", 0, 140 }
 
@@ -74,21 +80,34 @@ local function acquire()
   return f
 end
 
-local function animate()
+-- Height of one line plus the gap between lines
+local function lineStep()
+  local _, size = fontFor(FM:GetSetting("fctScale") or 1)
+  return size + (FM:GetSetting("fctSpacing") or 8)
+end
+
+local function animate(_, elapsed)
   local now = GetTime()
-  -- release the next queued text, spaced out so they don't stack
+  -- release the next queued text; newest goes at the bottom (index 1)
   if #queue > 0 and now - lastSpawn >= GAP then
     local item = table.remove(queue, 1)
     local f = acquire()
     f.text:SetFont(fontFor(FM:GetSetting("fctScale") or 1))
     f.text:SetText(item.text)
-    f.born = now
+    f.born, f.slot = now, 0
     f:SetAlpha(0)
     f:Show()
-    active[#active + 1] = f
+    table.insert(active, 1, f)
     lastSpawn = now
+    -- too many on screen: hurry the oldest along
+    for i = MAX_LINES + 1, #active do
+      local old = active[i]
+      old.born = math.min(old.born, now - DUR * 0.8)
+    end
   end
 
+  local step = lineStep()
+  local slide = math.min(1, (elapsed or 0.016) * 12)
   for i = #active, 1, -1 do
     local f = active[i]
     local t = (now - f.born) / DUR
@@ -97,9 +116,11 @@ local function animate()
       table.remove(active, i)
       pool[#pool + 1] = f
     else
+      -- glide up to this line's slot, plus a gentle drift of its own
+      f.slot = f.slot + ((i - 1) - f.slot) * slide
       local ease = 1 - (1 - t) * (1 - t)
       f:ClearAllPoints()
-      f:SetPoint("CENTER", anchor, "CENTER", 0, RISE * ease)
+      f:SetPoint("CENTER", anchor, "CENTER", 0, f.slot * step + DRIFT * ease)
       local pop = t < 0.06 and (1.25 - (t / 0.06) * 0.25) or 1  -- quick pop on arrival
       f:SetScale(pop)
       local a = t < 0.05 and t / 0.05 or (t > 0.7 and (1 - (t - 0.7) / 0.3) or 1)
@@ -191,6 +212,78 @@ local function onSkill(msg)
   if skill then push(("|cff69ccf0+1 %s (%s)|r"):format(skill, rank)) end
 end
 
+---------------------------------------------------------------------------
+-- Spells: an icon + name when you cast, and (optional) the hit that follows
+---------------------------------------------------------------------------
+
+-- Casts that aren't worth announcing
+local SKIP_CASTS = {
+  ["Attack"] = true, ["Auto Shot"] = true, ["Shoot"] = true,
+  ["Mining"] = true, ["Herb Gathering"] = true, ["Herbalism"] = true, ["Skinning"] = true,
+  ["Fishing"] = true, ["Disenchant"] = true, ["Opening"] = true,
+}
+
+local function spellInfo(id)
+  if C_Spell and C_Spell.GetSpellInfo then
+    local ok, info = pcall(C_Spell.GetSpellInfo, id)
+    if ok and type(info) == "table" then return safe(info.name), safe(info.iconID) end
+  end
+  if GetSpellInfo then
+    local name, _, icon = GetSpellInfo(id)
+    return safe(name), safe(icon)
+  end
+end
+
+local function isHarmful(id, name)
+  if C_Spell and C_Spell.IsSpellHarmful then
+    local ok, v = pcall(C_Spell.IsSpellHarmful, id)
+    if ok and v ~= nil then return safe(v) and true or false end
+  end
+  if IsHarmfulSpell and name then
+    local ok, v = pcall(IsHarmfulSpell, name)
+    if ok and v ~= nil then return safe(v) and true or false end
+  end
+  return true -- can't tell: let the hit check decide
+end
+
+local lastCast -- { name, icon, t, harmful, used }
+
+local function onCast(spellID)
+  spellID = safe(spellID)
+  if not spellID then return end
+  local name, icon = spellInfo(spellID)
+  if not name or not icon or SKIP_CASTS[name] then return end
+  lastCast = { name = name, icon = icon, t = GetTime(), harmful = isHarmful(spellID, name) }
+  if FM:GetSetting("fctCasts") then
+    push(("|T%s:0|t |cffffe9a8%s|r"):format(icon, name))
+  end
+end
+
+local function onUnitCombat(unit, action, flag, amount)
+  if unit ~= "target" or safe(action) ~= "WOUND" then return end
+  amount = tonumber(safe(amount))
+  local c = lastCast
+  if not amount or amount <= 0 or not c or c.used or not c.harmful then return end
+  if GetTime() - c.t > HIT_WINDOW or UnitIsUnit("target", "player") then return end
+  c.used = true -- one hit per cast
+  local crit = safe(flag) == "CRITICAL"
+  push(("|T%s:0|t %s%s|r"):format(c.icon, crit and "|cffffd100" or "|cffff8a5c",
+    crit and (amount .. "!") or tostring(amount)))
+end
+
+local hitsRegistered = false
+local function applyHits(ev)
+  local want = FM:GetSetting("fctHits") and true or false
+  if want == hitsRegistered then return end
+  if want then
+    if ev.RegisterUnitEvent then pcall(ev.RegisterUnitEvent, ev, "UNIT_COMBAT", "target")
+    else pcall(ev.RegisterEvent, ev, "UNIT_COMBAT") end
+  else
+    pcall(ev.UnregisterEvent, ev, "UNIT_COMBAT")
+  end
+  hitsRegistered = want
+end
+
 local lastMoney, lastXP, lastMax
 
 ---------------------------------------------------------------------------
@@ -269,7 +362,17 @@ end
 local ev = CreateFrame("Frame")
 local H = {}
 
-function H.PLAYER_LOGIN() build() end
+function H.PLAYER_LOGIN()
+  build()
+  applyHits(ev)
+  FM:OnSetting("fctHits", function() applyHits(ev) end)
+end
+
+function H.UNIT_SPELLCAST_SUCCEEDED(unit, _, spellID)
+  if unit == "player" then onCast(spellID) end
+end
+
+function H.UNIT_COMBAT(...) onUnitCombat(...) end
 
 function H.PLAYER_MONEY()
   local m = GetMoney()
@@ -299,7 +402,9 @@ ev:SetScript("OnEvent", function(_, event, ...)
   local ok, err = pcall(H[event], ...)
   if not ok and FM.debug then print("|cffff5555ForeverMetrics fct error|r", event, err) end
 end)
-for event in pairs(H) do pcall(ev.RegisterEvent, ev, event) end
+for event in pairs(H) do
+  if event ~= "UNIT_COMBAT" then pcall(ev.RegisterEvent, ev, event) end -- UNIT_COMBAT only when the option is on
+end
 
 ---------------------------------------------------------------------------
 -- Test + slash
@@ -309,6 +414,8 @@ function FM:FCTTest()
   if not anchor then return end
   if not FM:GetSetting("fct") then say("floating gains are off. Turn them on first.") return end
   push("+" .. money(12345))
+  push("|T135812:0|t |cffffe9a8Fireball|r")
+  push("|T135812:0|t |cffff8a5c142|r")
   push("+ |cff1eff00[Sample Green Sword]|r")
   push("|cff6fa8ff+25 Stormwind|r")
   push("|cff69ccf0+1 Mining (76)|r")

@@ -1,4 +1,4 @@
-# Forever Metrics (v0.14.1)
+# Forever Metrics (v0.15.0)
 
 A RuneMetrics-style tracker for World of Warcraft: Forever. It keeps an activity feed and stats for every character, and you can swap between characters or view totals for your whole account.
 
@@ -40,7 +40,7 @@ A RuneMetrics-style tracker for World of Warcraft: Forever. It keeps an activity
   - **Chat**
   - **Quality of Life**
 
-The window title shows the installed version, like "Forever Metrics v0.14.1", and so does the "loaded" line in chat at login.
+The window title shows the installed version, like "Forever Metrics v0.15.0", and so does the "loaded" line in chat at login.
 
 `<` and `>` at the top right switch characters (including "All Characters") on pages that show one character's data. `/fm settings` opens straight to the Options pages.
 
@@ -77,6 +77,8 @@ Play with someone else who runs Forever Metrics and the two addons link up.
 - Both of you should run the same version of Forever Metrics.
 
 ## Level-up celebration (new in v0.7.0)
+From v0.15.0 the pop-up has two columns: your new level, how long the last one took, stat gains and talent points on the left, and a scrolling list of skills on the right: what's new this level, then everything coming at the next level that brings new skills, with the training cost underneath. On a controller, the D-pad scrolls the list.
+
 When you ding, a pop-up shows your new level, how long the last level took, your stat gains, any new talent point, and the class skills that just unlocked at your trainer, with their costs and your gold.
 
 - **New skills:** the list comes from three places: your class trainer (visit it once and it remembers the full list, including skills you're too low for), your spellbook (every spell it lists with the level it's learned at), and any spell you learn right around the ding. Each skill shows **learned**, its training cost, or **at trainer**. On a level with nothing new, it shows "New skills at level N" with the next level's skills and their icons (v0.11.3). Upcoming skills come from the trainer, so they need a successful trainer read. Before v0.14.1, each spell kept only its highest rank (Forever's trainer reports skills differently from Classic), so visit each class trainer once after updating to fill in every rank. This keeps it accurate to Forever, with no hard-coded spell lists.

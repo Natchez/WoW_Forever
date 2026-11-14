@@ -14,7 +14,6 @@ local ADDON, ns = ...
 local FM = ns.FM
 
 local STAT_NAMES = { "Strength", "Agility", "Stamina", "Intellect", "Spirit" }
-local MAX_SKILLS = 8
 local AUTO_CLOSE = 30   -- seconds
 
 local modal, pending
@@ -422,10 +421,48 @@ end
 -- The modal
 ---------------------------------------------------------------------------
 
+-- Layout: two columns. Left: the level, how long it took, stat gains and
+-- talent points. Right: a scrolling list of skills (new this level, then
+-- the next level that brings new ones), with the training cost below.
+local W, H = 600, 300
+local LEFT_W = 230                 -- left column width
+local RIGHT_X = LEFT_W + 22        -- where the right column starts
+local ROW_H = 22
+
+local function getRow(i)
+  local child = modal.listChild
+  local r = modal.rows[i]
+  if r then return r end
+  r = CreateFrame("Frame", nil, child)
+  r:SetHeight(ROW_H)
+  r.icon = r:CreateTexture(nil, "ARTWORK")
+  r.icon:SetSize(18, 18); r.icon:SetPoint("LEFT", 2, 0)
+  r.icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
+  r.name = r:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+  r.name:SetPoint("LEFT", r.icon, "RIGHT", 6, 0)
+  r.name:SetPoint("RIGHT", r, "RIGHT", -70, 0)
+  r.name:SetJustifyH("LEFT")
+  r.name:SetWordWrap(false)
+  r.cost = r:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+  r.cost:SetPoint("RIGHT", -4, 0)
+  r.hdr = r:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+  r.hdr:SetPoint("LEFT", 2, 0)
+  r.hdr:SetTextColor(0.91, 0.76, 0.48)
+  -- Hover a skill to see its full tooltip
+  r.hl = r:CreateTexture(nil, "HIGHLIGHT")
+  r.hl:SetAllPoints()
+  r.hl:SetColorTexture(FM.THEME.hl[1], FM.THEME.hl[2], FM.THEME.hl[3], FM.THEME.hl[4])
+  r:EnableMouse(true)
+  r:SetScript("OnEnter", function(self) if self.skill then showSkillTooltip(self, self.skill) end end)
+  r:SetScript("OnLeave", function() GameTooltip:Hide() end)
+  modal.rows[i] = r
+  return r
+end
+
 local function build()
   modal = CreateFrame("Frame", "ForeverMetricsLevelUp", UIParent, "BackdropTemplate")
   FM:Skin(modal, { edge = 16, alpha = 0.96 })
-  modal:SetSize(360, 200)
+  modal:SetSize(W, H)
   modal:SetPoint("TOP", UIParent, "TOP", 0, -140)
   modal:SetFrameStrata("DIALOG")
   modal:SetClampedToScreen(true)
@@ -436,16 +473,18 @@ local function build()
   modal:SetScript("OnDragStop", modal.StopMovingOrSizing)
   tinsert(UISpecialFrames, "ForeverMetricsLevelUp") -- Esc closes it
 
+  local cx = 12 + LEFT_W / 2 -- centre of the left column
+
   -- Spinning star burst behind the title
   modal.burst = modal:CreateTexture(nil, "BACKGROUND", nil, 1)
   modal.burst:SetTexture("Interface\\Cooldown\\star4")
   modal.burst:SetBlendMode("ADD")
   modal.burst:SetVertexColor(1, 0.8, 0.35)
-  modal.burst:SetSize(220, 220)
-  modal.burst:SetPoint("CENTER", modal, "TOP", 0, -34)
+  modal.burst:SetSize(200, 200)
+  modal.burst:SetPoint("CENTER", modal, "TOPLEFT", cx, -40)
 
   modal.title = modal:CreateFontString(nil, "OVERLAY", "GameFontNormalHuge")
-  modal.title:SetPoint("TOP", 0, -18)
+  modal.title:SetPoint("TOP", modal, "TOPLEFT", cx, -24)
   modal.title:SetTextColor(1, 0.82, 0.35)
 
   modal.sub = modal:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
@@ -454,41 +493,36 @@ local function build()
 
   local rule = modal:CreateTexture(nil, "ARTWORK")
   rule:SetColorTexture(FM.THEME.border[1], FM.THEME.border[2], FM.THEME.border[3], 0.35)
-  rule:SetPoint("TOPLEFT", 18, -66); rule:SetPoint("TOPRIGHT", -18, -66); rule:SetHeight(1)
+  rule:SetPoint("TOPLEFT", 24, -74); rule:SetWidth(LEFT_W - 24); rule:SetHeight(1)
 
   modal.gains = modal:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-  modal.gains:SetPoint("TOP", 0, -76)
-  modal.gains:SetWidth(320)
-  modal.gains:SetSpacing(3)
+  modal.gains:SetPoint("TOP", modal, "TOPLEFT", cx, -86)
+  modal.gains:SetWidth(LEFT_W - 20)
+  modal.gains:SetSpacing(5)
 
-  modal.skillsHdr = modal:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-  modal.skillsHdr:SetPoint("TOPLEFT", 22, -110)
-  modal.skillsHdr:SetTextColor(0.91, 0.76, 0.48)
+  -- divider between the columns
+  local div = modal:CreateTexture(nil, "ARTWORK")
+  div:SetColorTexture(FM.THEME.border[1], FM.THEME.border[2], FM.THEME.border[3], 0.3)
+  div:SetPoint("TOPLEFT", RIGHT_X - 10, -18); div:SetPoint("BOTTOMLEFT", RIGHT_X - 10, 50); div:SetWidth(1)
 
-  modal.rows = {}
-  for i = 1, MAX_SKILLS do
-    local r = CreateFrame("Frame", nil, modal)
-    r:SetSize(316, 20)
-    r.icon = r:CreateTexture(nil, "ARTWORK")
-    r.icon:SetSize(18, 18); r.icon:SetPoint("LEFT")
-    r.icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
-    r.name = r:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    r.name:SetPoint("LEFT", r.icon, "RIGHT", 6, 0)
-    r.name:SetJustifyH("LEFT")
-    r.cost = r:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    r.cost:SetPoint("RIGHT")
-    -- Hover a skill to see its full tooltip
-    local hl = r:CreateTexture(nil, "HIGHLIGHT")
-    hl:SetAllPoints()
-    hl:SetColorTexture(FM.THEME.hl[1], FM.THEME.hl[2], FM.THEME.hl[3], FM.THEME.hl[4])
-    r:EnableMouse(true)
-    r:SetScript("OnEnter", function(self) showSkillTooltip(self, self.skill) end)
-    r:SetScript("OnLeave", function() GameTooltip:Hide() end)
-    modal.rows[i] = r
-  end
+  -- skills list (scrolls when long)
+  local sf = CreateFrame("ScrollFrame", nil, modal, "UIPanelScrollFrameTemplate")
+  sf:SetPoint("TOPLEFT", RIGHT_X, -18)
+  sf:SetPoint("BOTTOMRIGHT", -32, 70)
+  local child = CreateFrame("Frame", nil, sf)
+  child:SetSize(W - RIGHT_X - 32, 10)
+  sf:SetScrollChild(child)
+  modal.list, modal.listChild, modal.rows = sf, child, {}
+
+  modal.empty = child:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+  modal.empty:SetPoint("TOPLEFT", 4, -4)
+  modal.empty:SetWidth(W - RIGHT_X - 40)
+  modal.empty:SetJustifyH("LEFT")
+  modal.empty:SetSpacing(3)
 
   modal.foot = modal:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-  modal.foot:SetWidth(316)
+  modal.foot:SetPoint("BOTTOMLEFT", RIGHT_X + 2, 52)
+  modal.foot:SetPoint("RIGHT", modal, "RIGHT", -20, 0)
   modal.foot:SetJustifyH("LEFT")
 
   modal.ok = CreateFrame("Button", nil, modal, "UIPanelButtonTemplate")
@@ -497,15 +531,22 @@ local function build()
   modal.ok:SetText("Nice!")
   modal.ok:SetScript("OnClick", function() modal:Hide() end)
 
-  -- Controller: A or B closes it, every other button passes through
+  -- Controller: A or B closes it, D-pad up/down scrolls the skills, every
+  -- other button passes through
   if modal.EnableGamePadButton then
     modal:EnableGamePadButton(true)
     modal:SetScript("OnGamePadButtonDown", function(self, button)
-      local mine = (button == "PAD1" or button == "PAD2")
+      local mine = (button == "PAD1" or button == "PAD2" or button == "PADDUP" or button == "PADDDOWN")
       if not InCombatLockdown() and self.SetPropagateGamePadInput then
         pcall(self.SetPropagateGamePadInput, self, not mine)
       end
-      if mine then self:Hide() end
+      if button == "PADDUP" or button == "PADDDOWN" then
+        local sfr = self.list
+        local v = sfr:GetVerticalScroll() + (button == "PADDUP" and -ROW_H * 2 or ROW_H * 2)
+        sfr:SetVerticalScroll(math.max(0, math.min(sfr:GetVerticalScrollRange(), v)))
+      elseif mine then
+        self:Hide()
+      end
     end)
   end
 
@@ -541,98 +582,119 @@ local function animate(self, elapsed)
   self.burst:SetAlpha(math.max(0.15, 0.85 - t * 0.25))
 end
 
+-- Fill the skills list: section headers and skill rows
+local function fillSkills(data)
+  for _, r in ipairs(modal.rows) do r:Hide() end
+  modal.empty:Hide(); modal.foot:SetText("")
+  modal.list:SetVerticalScroll(0)
+
+  if not FM:GetSetting("levelSkills") then
+    modal.empty:SetText("|cffa8977aSkill lists are turned off (Options > Interface > Level Up).|r")
+    modal.empty:Show()
+    modal.listChild:SetHeight(40)
+    return
+  end
+  if #data.skills == 0 and not haveSkillData() then
+    modal.empty:SetText("|cffe8c27aNew skills|r\n\n|cffa8977aVisit your class trainer once, and level-ups will list the skills you unlock, plus what's coming next.|r")
+    modal.empty:Show()
+    modal.listChild:SetHeight(80)
+    return
+  end
+
+  -- what's next: the first later level that brings anything
+  local nextList, nextCost, nextLevel = {}, 0, nil
+  for L = data.level + 1, data.level + 10 do
+    local l2, c2 = skillsAt(L)
+    if #l2 > 0 then nextList, nextCost, nextLevel = l2, c2, L; break end
+  end
+
+  local i, y = 0, 0
+  local function header(text)
+    i = i + 1
+    local r = getRow(i)
+    r.skill = nil
+    r.icon:Hide(); r.name:Hide(); r.cost:Hide(); r.hl:Hide()
+    r.hdr:SetText(text); r.hdr:Show()
+    r:SetAlpha(1)
+    r:ClearAllPoints()
+    r:SetPoint("TOPLEFT", modal.listChild, "TOPLEFT", 0, -y)
+    r:SetPoint("TOPRIGHT", modal.listChild, "TOPRIGHT", 0, -y)
+    r:Show()
+    y = y + ROW_H + 2
+  end
+  local function row(sk, dim)
+    i = i + 1
+    local r = getRow(i)
+    r.skill = sk
+    r.hdr:Hide(); r.icon:Show(); r.name:Show(); r.cost:Show(); r.hl:Show()
+    r.icon:SetTexture(sk.icon or spellIcon(sk.id) or "Interface\\Icons\\INV_Misc_QuestionMark")
+    r.name:SetText(sk.r and ("%s |cffa8977a%s|r"):format(sk.n, sk.r) or sk.n)
+    if sk.known then
+      r.cost:SetText("|cff7fd36blearned|r")
+    elseif sk.cost then
+      r.cost:SetText(sk.cost > 0 and money(sk.cost) or "|cff7fd36bfree|r")
+    else
+      r.cost:SetText("|cffa8977aat trainer|r")
+    end
+    r:SetAlpha(dim and 0.8 or 1)
+    r:ClearAllPoints()
+    r:SetPoint("TOPLEFT", modal.listChild, "TOPLEFT", 0, -y)
+    r:SetPoint("TOPRIGHT", modal.listChild, "TOPRIGHT", 0, -y)
+    r:Show()
+    y = y + ROW_H
+  end
+
+  if #data.skills > 0 then
+    header(("New this level (%d)"):format(#data.skills))
+    for _, sk in ipairs(data.skills) do row(sk, false) end
+    y = y + 8
+  end
+  if nextLevel then
+    header(("Next up: level %d (%d)"):format(nextLevel, #nextList))
+    for _, sk in ipairs(nextList) do row(sk, true) end
+  end
+  if i == 0 then
+    modal.empty:SetText("|cffe8c27aNew skills|r\n\n|cffa8977aNothing new this level, and your upcoming skills aren't known yet. Open your class trainer, then type /fm levelup check.|r")
+    modal.empty:Show()
+    y = 80
+  end
+  modal.listChild:SetHeight(math.max(y, 10))
+
+  -- cost line under the list
+  local have = GetMoney()
+  if (data.cost or 0) > 0 then
+    local t = ("Train now: %s  ·  you have %s"):format(money(data.cost), money(have))
+    if have < data.cost then t = t .. "  |cffff6b6b(short)|r" end
+    modal.foot:SetText(t)
+  elseif nextLevel and nextCost > 0 then
+    modal.foot:SetText(("Level %d training: %s  ·  you have %s"):format(nextLevel, money(nextCost), money(have)))
+  end
+end
+
 local function show(data, keepAnim)
   if not modal then build() end
   modal.data = data
   modal.title:SetText(("Level %d!"):format(data.level))
   modal.sub:SetText(data.took and ("Level %d took %s"):format(data.level - 1, dur(data.took)) or "Ding!")
 
-  -- Stat gains line(s)
-  local parts = {}
-  if (data.hp or 0) > 0 then parts[#parts + 1] = ("|cff7fd36b+%d|r Health"):format(data.hp) end
-  if (data.mp or 0) > 0 then parts[#parts + 1] = ("|cff69ccf0+%d|r %s"):format(data.mp, data.powerName or "Mana") end
+  -- Stat gains, one kind per line
+  local lines = {}
+  if (data.hp or 0) > 0 then lines[#lines + 1] = ("|cff7fd36b+%d|r Health"):format(data.hp) end
+  if (data.mp or 0) > 0 then lines[#lines + 1] = ("|cff69ccf0+%d|r %s"):format(data.mp, data.powerName or "Mana") end
+  local stats = {}
   for i, name in ipairs(STAT_NAMES) do
     local d = data.stats and data.stats[i]
     -- a ding gives 0-3 per stat; anything bigger is a gear swap, so skip it
-    if d and d > 0 and d <= 5 then
-      parts[#parts + 1] = ("|cffe8c27a+%d|r %s"):format(d, name)
-    end
+    if d and d > 0 and d <= 5 then stats[#stats + 1] = ("|cffe8c27a+%d|r %s"):format(d, name) end
   end
-  local gains = table.concat(parts, "  ·  ")
+  for _, st in ipairs(stats) do lines[#lines + 1] = st end
   if (data.talents or 0) > 0 then
-    gains = gains .. ("\n|cffffd100+%d talent %s to spend|r"):format(data.talents, data.talents == 1 and "point" or "points")
+    lines[#lines + 1] = ("\n|cffffd100+%d talent %s to spend|r"):format(data.talents, data.talents == 1 and "point" or "points")
   end
-  modal.gains:SetText(gains ~= "" and gains or "Onward!")
+  modal.gains:SetText(#lines > 0 and table.concat(lines, "\n") or "Onward!")
 
-  -- Skills
-  local y = -76 - modal.gains:GetStringHeight() - 14
-  for _, r in ipairs(modal.rows) do r:Hide() end
-  modal.skillsHdr:Hide(); modal.foot:Hide()
+  fillSkills(data)
 
-  if FM:GetSetting("levelSkills") then
-    modal.skillsHdr:ClearAllPoints()
-    modal.skillsHdr:SetPoint("TOPLEFT", 22, y)
-    modal.skillsHdr:Show()
-    y = y - 20
-    if #data.skills == 0 and not haveSkillData() then
-      modal.skillsHdr:SetText("New skills")
-      modal.foot:SetText("|cffa8977aVisit your class trainer once, and future level-ups will list the skills you just unlocked.|r")
-      modal.foot:ClearAllPoints(); modal.foot:SetPoint("TOPLEFT", 22, y); modal.foot:Show()
-      y = y - modal.foot:GetStringHeight() - 6
-    else
-      local list, cost, upcoming = data.skills, data.cost or 0, nil
-      if #list == 0 then
-        -- Nothing new now: show the next level that brings something
-        for L = data.level + 1, data.level + 10 do
-          local l2, c2 = skillsAt(L)
-          if #l2 > 0 then list, cost, upcoming = l2, c2, L; break end
-        end
-      end
-      if #list == 0 then
-        modal.skillsHdr:SetText("New skills")
-        modal.foot:SetText("|cffa8977aNothing new this level, and your upcoming skills aren't known yet. Open your class trainer, then type /fm levelup check.|r")
-        modal.foot:ClearAllPoints(); modal.foot:SetPoint("TOPLEFT", 22, y); modal.foot:Show()
-        y = y - modal.foot:GetStringHeight() - 6
-      else
-        if upcoming then
-          modal.skillsHdr:SetText(("New skills at level %d"):format(upcoming))
-        else
-          modal.skillsHdr:SetText(("New this level (%d)"):format(#list))
-        end
-        for i, sk in ipairs(list) do
-          local r = modal.rows[i]
-          if not r then break end
-          r.skill = sk
-          r.icon:SetTexture(sk.icon or spellIcon(sk.id) or "Interface\\Icons\\INV_Misc_QuestionMark")
-          r.name:SetText(sk.r and ("%s |cffa8977a(%s)|r"):format(sk.n, sk.r) or sk.n)
-          if sk.known then
-            r.cost:SetText("|cff7fd36blearned|r")
-          elseif sk.cost then
-            r.cost:SetText(sk.cost > 0 and money(sk.cost) or "|cff7fd36bfree|r")
-          else
-            r.cost:SetText("|cffa8977aat trainer|r")
-          end
-          r:SetAlpha(upcoming and 0.75 or 1) -- upcoming skills a touch dimmer
-          r:ClearAllPoints(); r:SetPoint("TOPLEFT", 22, y); r:Show()
-          y = y - 22
-        end
-        local extra = #list - MAX_SKILLS
-        local foot = ""
-        if cost > 0 then
-          foot = ("%s %s  ·  you have %s"):format(upcoming and "Will cost" or "Total", money(cost), money(GetMoney()))
-          if not upcoming and GetMoney() < cost then foot = foot .. "  |cffff6b6b(short)|r" end
-        end
-        if extra > 0 then foot = ("|cffa8977a+%d more|r   "):format(extra) .. foot end
-        if foot ~= "" then
-          modal.foot:SetText(foot)
-          modal.foot:ClearAllPoints(); modal.foot:SetPoint("TOPLEFT", 22, y - 4); modal.foot:Show()
-          y = y - 4 - modal.foot:GetStringHeight() - 6
-        end
-      end
-    end
-  end
-
-  modal:SetHeight(-y + 50)
   if keepAnim and modal:IsShown() then return end -- just refreshed the content
   modal.age = 0
   modal:SetScale(0.75); modal:SetAlpha(0)

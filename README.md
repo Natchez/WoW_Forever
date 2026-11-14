@@ -6,7 +6,7 @@ Our addons for World of Warcraft: Forever.
 
 | Addon | Version | What it does |
 |---|---|---|
-| [ForeverMetrics](addons/ForeverMetrics) | 0.15.0 | Stats, activity feed, loot luck, XP pill, level-up pop-up and duo mode. Type `/fm` in game. See its [README](addons/ForeverMetrics/README.md). |
+| [ForeverMetrics](addons/ForeverMetrics) | 0.16.0 | Stats, activity feed, loot luck, XP pill, level-up pop-up and duo mode. Type `/fm` in game. See its [README](addons/ForeverMetrics/README.md). |
 
 ## Layout
 
@@ -18,7 +18,9 @@ addons/
 download-page/           the claude.ai download page for ForeverMetrics
 tools/
   package.py             builds dist/<Addon>-<version>.zip
-  bundle.py              builds the download page's data file
+  bundle.py              builds the download page's addon list
+  stats.py               turns players' saved data into the stats page's data
+  icons.py               fetches the WoW icons the stats page uses
 dist/                    built zips (not committed)
 ```
 

@@ -1,4 +1,4 @@
-<title>Forever Metrics</title>
+<title>FC WoW Addons</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
@@ -166,16 +166,61 @@ summary { cursor: pointer; font-weight: 600; }
 .cmds dd { margin: 0; min-width: 0; }
 @media (max-width: 440px) { .cmds { grid-template-columns: 1fr; } }
 @media (prefers-reduced-motion: no-preference) { .fl, .c { transition: width .3s ease, height .3s ease; } }
+
+/* download box in the header */
+.getbox { display: grid; gap: 6px; justify-items: start; }
+.getbox .actions { gap: 8px; }
+select { font: 500 14px/1 var(--body); color: var(--ink); background: var(--panel); border: 1px solid var(--rule);
+         border-radius: 6px; padding: 11px 12px; max-width: 100%; }
+select:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
+.notes { font-size: 12.5px; color: var(--muted); max-width: 46ch; margin: 0; }
+
+/* icons */
+.ico { width: 20px; height: 20px; border-radius: 4px; box-shadow: 0 0 0 1px var(--rule); flex: none; display: inline-block; object-fit: cover; }
+.ico.lg { width: 30px; height: 30px; border-radius: 6px; }
+.bars .lb { display: flex; align-items: center; gap: 7px; min-width: 0; }
+.bars .lb span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* professions */
+.profs { display: grid; gap: 14px; }
+.prof { border-top: 1px solid var(--rule); padding-top: 14px; display: grid; gap: 12px; }
+.prof:first-child { border-top: 0; padding-top: 0; }
+.prof .ph { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; align-items: center; }
+.prof .ph b { font: 600 16px/1.2 var(--body); }
+.prof .rk { grid-column: 2; display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; font: 12px/1 var(--mono); color: var(--muted); }
+.prof .rk .tr { height: 6px; background: var(--track); border-radius: 3px; overflow: hidden; }
+.prof .rk .fl { display: block; height: 100%; background: var(--bar); }
+.pcols { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px 18px; }
+.pcol h4 { margin: 0 0 8px; font: 600 12.5px/1.2 var(--body); color: var(--muted); }
+.recipes { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; max-height: 260px; overflow-y: auto; font-size: 13px; }
+.recipes li { display: grid; grid-template-columns: auto auto 1fr auto; gap: 7px; align-items: center; padding: 2px 4px 2px 0; border-radius: 4px; }
+.recipes li:hover { background: var(--track); }
+.recipes .rn { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.recipes .rm { font: 11.5px/1 var(--mono); color: var(--muted); white-space: nowrap; }
+.diff { width: 8px; height: 8px; border-radius: 50%; box-shadow: 0 0 0 1px var(--faint); }
+.reag { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px 16px; font-size: 13px; }
+.reag li { display: grid; grid-template-columns: auto 1fr auto; gap: 8px; align-items: center; min-width: 0; }
+.reag .rn { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.reag .rm { font: 12px/1 var(--mono); color: var(--muted); white-space: nowrap; }
 </style>
 
 <main>
   <header class="top">
     <div class="titles">
       <span class="eyebrow">WoW: Forever · CAMWOW realm</span>
-      <h1>Forever Metrics</h1>
+      <h1>FC WoW Addons</h1>
       <span class="snap" id="snap">Loading stats…</span>
     </div>
-    <button id="open-dl" type="button">Get the addon <span id="ver-btn"></span></button>
+    <div class="getbox">
+      <label class="eyebrow" for="addon-pick">Download an addon</label>
+      <div class="actions">
+        <select id="addon-pick"><option>Loading…</option></select>
+        <button id="dl" type="button">Download</button>
+        <button id="open-dl" class="ghost" type="button">Install help</button>
+      </div>
+      <p class="notes" id="addon-notes"></p>
+      <span id="status" class="status" role="status"></span>
+    </div>
   </header>
 
   <section class="totals" id="totals" aria-label="Account totals"></section>
@@ -196,21 +241,17 @@ summary { cursor: pointer; font-weight: 600; }
   <div class="dlg">
     <div class="head">
       <div>
-        <span class="eyebrow">ForeverMetrics addon</span>
-        <h2 id="dl-title">Version <span id="ver">0.14.1</span></h2>
+        <span class="eyebrow">Install help</span>
+        <h2 id="dl-title">Installing an addon</h2>
       </div>
       <button class="close" type="button" id="close-dl" aria-label="Close">×</button>
-    </div>
-    <div class="actions">
-      <button id="dl" type="button">Download ForeverMetrics.zip</button>
-      <span id="status" class="status" role="status"></span>
     </div>
     <ol>
       <li>Close World of Warcraft.</li>
       <li>Open your AddOns folder, for example
         <code class="path">World of Warcraft\_forever_\Interface\AddOns</code></li>
-      <li>Unzip the download there, so you get <code>AddOns\ForeverMetrics\ForeverMetrics.toc</code>. Replace an older <code>ForeverMetrics</code> folder if there is one; saved stats are kept.</li>
-      <li>Start the game and type <code>/fm</code>. The window title shows the version.</li>
+      <li>Unzip the download there, so you get <code>AddOns\ForeverMetrics\ForeverMetrics.toc</code> (or <code>AddOns\ForeverBuffs\…</code>). Replace an older folder of the same name if there is one; saved data is kept.</li>
+      <li>Start the game. <code>/fm</code> opens Forever Metrics (its window title shows the version); <code>/fb</code> controls Forever Buffs.</li>
     </ol>
     <details>
       <summary>Duo mode and handy commands</summary>
@@ -289,12 +330,23 @@ summary { cursor: pointer; font-weight: 600; }
     return el("div", { "class": "panel" + (wide ? " wide" : "") }, [el("h3", { text: title })].concat(body));
   }
   function empty(text) { return el("p", { "class": "empty", text: text }); }
+  // an icon by key ("spell:133", "item:2589", "class:MAGE", "prof:Mining", "name:Copper Ore")
+  function ico(key, cls, extraStyle) {
+    var name = DATA && DATA.icons && DATA.icons[key];
+    if (!name) return null;
+    return el("img", { "class": "ico" + (cls ? " " + cls : ""), src: "icons/" + name + ".jpg", alt: "", loading: "lazy",
+      style: extraStyle || "" });
+  }
+  function firstIco(keys, cls) {
+    for (var i = 0; i < keys.length; i++) { var x = keys[i] && ico(keys[i], cls); if (x) return x; }
+    return null;
+  }
   function barList(rows, fmt, tipFn, fixedMax) {
     if (!rows.length) return null;
     var max = fixedMax || Math.max.apply(null, rows.map(function (r) { return r.value; })) || 1;
     return el("ul", { "class": "bars" }, rows.map(function (r) {
       return el("li", { "data-tip": tipFn ? tipFn(r) : r.name + ": " + fmt(r.value) }, [
-        el("span", { "class": "lb", text: r.name }),
+        el("span", { "class": "lb" }, [r.icon ? ico(r.icon) : null, el("span", { text: r.name })]),
         el("span", { "class": "tr" }, [el("span", { "class": "fl", style: "display:block;width:" + (100 * r.value / max) + "%" })]),
         el("span", { "class": "vl", text: fmt(r.value) })
       ]);
@@ -323,7 +375,7 @@ summary { cursor: pointer; font-weight: 600; }
     DATA.chars.forEach(function (c) {
       var b = el("button", { "class": "pick", type: "button", "aria-pressed": String(c.key === sel) }, [
         el("span", { "class": "row1" }, [
-          el("span", { "class": "dot", style: "background:" + (CLASS_COLOR[c["class"]] || "var(--faint)") }),
+          ico("class:" + c["class"]) || el("span", { "class": "dot", style: "background:" + (CLASS_COLOR[c["class"]] || "var(--faint)") }),
           el("span", { "class": "nm", text: c.name }),
           el("span", { "class": "lv", text: "Lv " + c.level })
         ]),
@@ -347,6 +399,8 @@ summary { cursor: pointer; font-weight: 600; }
       ["Deaths", n(s.deaths)], ["Gold earned", gold(s.goldEarned)], ["Gold spent", gold(s.goldSpent)],
       ["Looted from mobs", gold(s.goldLooted)], ["Last played", day(c.lastSeen)]
     ].map(function (x) { return el("div", null, [el("b", { text: x[1] }), el("span", { text: x[0] })]); }))]));
+
+    renderProfessions(box, c);
 
     // time per level
     var lv = Object.keys(c.levelTimes).map(Number).sort(function (a, b) { return a - b; })
@@ -388,7 +442,8 @@ summary { cursor: pointer; font-weight: 600; }
       qual.childNodes.length ? qual : empty("No loot tracked yet."),
       finds.length ? el("ul", { "class": "finds" }, finds.map(function (f) {
         var Q = QUAL[f.q] || QUAL[1];
-        return el("li", null, [el("span", { "class": "sw", style: "background:" + Q.c }), el("span", { text: f.name }),
+        var icon = f.id && ico("item:" + f.id, null, "box-shadow:0 0 0 1.5px " + Q.c);
+        return el("li", null, [icon || el("span", { "class": "sw", style: "background:" + Q.c }), el("span", { text: f.name }),
           el("span", { "class": "meta", text: [f.mob, f.zone, f.kill ? "kill #" + n(f.kill) : "", day(f.t)].filter(Boolean).join(" · ") })]);
       })) : null,
       c.loot.cloth.length ? el("p", { "class": "muted", style: "margin:12px 0 0;font-size:13px",
@@ -399,7 +454,7 @@ summary { cursor: pointer; font-weight: 600; }
     box.appendChild(panel("Most hunted", false, [barList(c.kills, n, function (r) { return r.name + ": " + n(r.value) + " kills"; }) || empty("No kills yet.")]));
 
     // professions & skills
-    var skills = c.skills.slice(0, 8).map(function (x) { return { name: x.name, value: x.rank }; });
+    var skills = c.skills.slice(0, 8).map(function (x) { return { name: x.name, value: x.rank, icon: "prof:" + x.name }; });
     box.appendChild(panel("Skills", false, [barList(skills, function (v) { return v + " / 300"; }, function (r) { return r.name + " " + r.value + " of 300"; }, 300) || empty("Skills show up after their first skill-up.")]));
 
     // gathering
@@ -408,7 +463,7 @@ summary { cursor: pointer; font-weight: 600; }
       var G = c.gathering[k];
       return el("div", { style: "margin-bottom:12px" }, [
         el("p", { style: "margin:0 0 8px;font-weight:600", text: k + " · " + n(G.nodes) + (k === "Fishing" ? " catches" : " nodes") }),
-        barList(G.items, n)
+        barList(G.items.map(function (it) { return { name: it.name, value: it.value, icon: "name:" + it.name }; }), n)
       ]);
     }) : [empty("No gathering yet.")]));
 
@@ -417,6 +472,89 @@ summary { cursor: pointer; font-weight: 600; }
     box.appendChild(panel("Recent activity", true, [feed.length ? el("ul", { "class": "feed" }, feed.map(function (e) {
       return el("li", null, [el("time", { text: when(e.t) }), el("span", { text: e.x })]);
     })) : empty("Nothing yet.")]));
+  }
+
+  // ---------- professions ----------
+  var DIFF = { optimal: ["#ff8040", "Orange: always a skill-up"], medium: ["#ffff00", "Yellow: usually a skill-up"],
+    easy: ["#40bf40", "Green: sometimes a skill-up"], trivial: ["#808080", "Grey: no more skill-ups"] };
+  function recipeTip(r) {
+    var lines = [r.n];
+    if (r.diff && DIFF[r.diff]) lines.push(DIFF[r.diff][1]);
+    (r.reagents || []).forEach(function (g) { lines.push(g.c + "× " + (g.n || "?") + "  (have " + n(g.have) + ")"); });
+    if (r.canMake) lines.push("You can make " + n(r.canMake) + " now");
+    return lines.join("\n");
+  }
+  function recipeRow(r, meta, dim) {
+    var d = DIFF[r.diff];
+    return el("li", { "data-tip": r.tip || recipeTip(r), style: dim ? "opacity:.8" : "" }, [
+      d ? el("span", { "class": "diff", style: "background:" + d[0] }) : el("span"),
+      firstIco(["spell:" + r.spell, "item:" + r.item, "name:" + r.n]) || el("span", { "class": "ico" }),
+      el("span", { "class": "rn", text: r.n + (r.r ? " (" + r.r + ")" : "") }),
+      el("span", { "class": "rm", text: meta || "" })
+    ]);
+  }
+  function col(title, rows, emptyText) {
+    return el("div", { "class": "pcol" }, [el("h4", { text: title }),
+      rows.length ? el("ul", { "class": "recipes" }, rows) : empty(emptyText)]);
+  }
+  function renderProfessions(box, c) {
+    var profs = c.profs || [];
+    var body;
+    if (!profs.length) {
+      body = [empty("No professions yet.")];
+    } else {
+      body = [el("div", { "class": "profs" }, profs.map(function (P) {
+        var max = P.max || 300;
+        var head = el("div", { "class": "ph" }, [
+          ico("prof:" + P.name, "lg") || el("span"),
+          el("b", { text: P.name }),
+          el("div", { "class": "rk" }, [el("span", { "class": "tr" }, [el("span", { "class": "fl", style: "width:" + Math.min(100, 100 * P.rank / max) + "%" })]),
+            el("span", { text: P.rank + " / " + max })])
+        ]);
+        var gathering = ["Mining", "Herbalism", "Skinning", "Fishing"].indexOf(P.name) >= 0;
+        if (!P.recipes.length && !P.trainerKnown) {
+          return el("div", { "class": "prof" }, [head, empty(gathering && P.name !== "Mining"
+            ? "A gathering skill: see Gathering below for what you've collected."
+            : "To fill this in: open your " + P.name + " window in game (ForeverMetrics 0.16 or newer), and visit a " + P.name + " trainer once.")]);
+        }
+        var cols = [];
+        if (P.recipes.length) {
+          var make = P.recipes.filter(function (r) { return r.canMake > 0; });
+          cols.push(col("Can craft now (" + make.length + ")",
+            make.map(function (r) { return recipeRow(r, "×" + n(r.canMake)); }),
+            c.bagsSeen ? "Nothing — you're missing reagents for every recipe." : "Shows up once the addon has seen your bags."));
+          cols.push(col("Known recipes (" + P.recipes.length + ")", P.recipes.map(function (r) { return recipeRow(r, ""); }), ""));
+        } else {
+          cols.push(col("Known recipes", [], "Open your " + P.name + " window once in game (ForeverMetrics 0.16 or newer) to list your recipes and what you can craft."));
+        }
+        if (P.trainerKnown) {
+          cols.push(col("Learn now (" + P.missing.length + ")", P.missing.map(function (r) {
+            r.tip = r.n + (r.r ? " (" + r.r + ")" : "") + "\nNeeds " + P.name + " " + r.skill + (r.lv ? ", level " + r.lv : "") + "\nCosts " + gold(r.cost);
+            return recipeRow(r, gold(r.cost));
+          }), "You know everything your trainer teaches at this skill."));
+          cols.push(col("Coming up", P.upcoming.map(function (r) {
+            r.tip = r.n + (r.r ? " (" + r.r + ")" : "") + "\nUnlocks at " + P.name + " " + r.skill + (r.lv ? ", level " + r.lv : "") + "\nCosts " + gold(r.cost);
+            return recipeRow(r, "at " + r.skill, true);
+          }), "Nothing more at this trainer."));
+        } else if (!gathering) {
+          cols.push(col("Missing and coming up", [], "Visit a " + P.name + " trainer once to list recipes you can learn now and the ones coming up."));
+        }
+        return el("div", { "class": "prof" }, [head, el("div", { "class": "pcols" }, cols)]);
+      }))];
+    }
+    box.appendChild(panel("Professions", true, body));
+
+    // reagents on the character
+    var reag = c.reagents || [];
+    box.appendChild(panel("Reagents and materials", true, [reag.length ? el("ul", { "class": "reag" }, reag.map(function (e) {
+      var where = [e.bags ? n(e.bags) + " bags" : "", e.bank ? n(e.bank) + " bank" : ""].filter(Boolean).join(" · ");
+      return el("li", { "data-tip": (e.n || "Item " + e.id) + "\n" + where }, [
+        firstIco(["item:" + e.id, "name:" + e.n]) || el("span", { "class": "ico" }),
+        el("span", { "class": "rn", text: e.n || "Item " + e.id }),
+        el("span", { "class": "rm", text: "×" + n(e.bags + e.bank) })
+      ]);
+    })) : empty(c.bagsSeen ? "No crafting materials in your bags." :
+      "Shows up once ForeverMetrics 0.16 or newer has seen your bags. Open your bank once to include it.")]));
   }
 
   function renderDuo() {
@@ -436,7 +574,10 @@ summary { cursor: pointer; font-weight: 600; }
       var nick = P.nick || "Partner";
       var head = el("div", { "class": "panel wide" }, [
         el("div", { "class": "duohead" }, [el("h2", { text: "Duo with " + nick }), el("span", { "class": "muted", text: "paired since " + day(P.added) })]),
-        el("p", { "class": "muted", style: "margin:0 0 14px", text: "Their characters: " + P.chars.map(function (c) { return c.name + " (" + cap(c["class"]) + " " + c.level + ")"; }).join(", ") }),
+        el("p", { "class": "muted", style: "margin:0 0 14px;display:flex;flex-wrap:wrap;gap:6px 16px;align-items:center" },
+          [el("span", { text: "Their characters:" })].concat(P.chars.map(function (c) {
+            return el("span", { style: "display:inline-flex;gap:6px;align-items:center" }, [ico("class:" + c["class"]), c.name + " (" + cap(c["class"]) + " " + c.level + ")"]);
+          }))),
         el("div", { "class": "kv" }, [["Time together", dur(T.time)], ["Kills together", n(T.kills)], ["Quests together", n(T.quests)], ["Levels together", n(T.levels)]]
           .map(function (x) { return el("div", null, [el("b", { text: x[1] }), el("span", { text: x[0] })]); }))
       ]);
@@ -488,35 +629,49 @@ summary { cursor: pointer; font-weight: 600; }
   dlg.addEventListener("click", function (e) { if (e.target === dlg && dlg.close) dlg.close(); });
 
   var downloadsP = (window.claude && window.claude.use) ? window.claude.use("downloads") : Promise.resolve(null);
-  var pkgP = fetch("addon-files.json").then(function (r) { if (!r.ok) throw { code: "fetch" }; return r.json(); });
+  var pick = document.getElementById("addon-pick"), notes = document.getElementById("addon-notes");
+  var ADDONS = [];
+  var pkgP = fetch("addons.json").then(function (r) { if (!r.ok) throw { code: "fetch" }; return r.json(); });
+  function showNotes() {
+    var a = ADDONS[pick.selectedIndex];
+    notes.textContent = a ? a.notes.replace(/\|c\w{8}|\|r/g, "") : "";
+    store("fm-addon", a ? a.folder : "");
+  }
   pkgP.then(function (pkg) {
-    if (!pkg.version) return;
-    document.getElementById("ver").textContent = pkg.version;
-    document.getElementById("ver-btn").textContent = "v" + pkg.version;
-    document.getElementById("dl").textContent = "Download ForeverMetrics-" + pkg.version + ".zip";
-  }).catch(function () {});
+    ADDONS = pkg.addons || [];
+    pick.textContent = "";
+    var want = store("fm-addon");
+    ADDONS.forEach(function (a, i) {
+      var o = el("option", { value: a.folder, text: a.title.replace(/\|c\w{8}|\|r/g, "") + " v" + a.version });
+      if (a.folder === want) o.selected = true;
+      pick.appendChild(o);
+    });
+    showNotes();
+  }).catch(function () { pick.textContent = ""; pick.appendChild(el("option", { text: "Couldn't load the addon list" })); });
+  pick.addEventListener("change", showNotes);
 
   var btn = document.getElementById("dl"), status = document.getElementById("status");
   function say(text, cls) { status.textContent = text; status.className = "status " + (cls || ""); }
   btn.addEventListener("click", function () {
+    var a = ADDONS[pick.selectedIndex];
+    if (!a) { say("The addon list hasn't loaded yet.", "err"); return; }
     btn.disabled = true;
-    say("Preparing the file…");
-    var name;
-    Promise.all([downloadsP, pkgP.then(function (pkg) {
+    say("Preparing " + a.folder + "…");
+    var name = a.folder + "-" + a.version + ".zip";
+    Promise.all([downloadsP, Promise.resolve().then(function () {
       if (!window.JSZip) throw { code: "fetch" };
-      name = pkg.folder + "-" + (pkg.version || "latest") + ".zip";
-      var zip = new JSZip(), dir = zip.folder(pkg.folder);
-      Object.keys(pkg.files).forEach(function (f) { dir.file(f, pkg.files[f]); });
+      var zip = new JSZip(), dir = zip.folder(a.folder);
+      Object.keys(a.files).forEach(function (f) { dir.file(f, a.files[f]); });
       return zip.generateAsync({ type: "blob", compression: "DEFLATE" });
     })]).then(function (res) {
       if (!res[0]) throw { code: "unavailable" };
       say("Confirm the download in the prompt.");
       return res[0].save({ filename: name, data: res[1] });
     }).then(function () {
-      say("Downloaded. Follow the steps below.", "ok");
+      say("Downloaded " + name + ". Unzip it into your AddOns folder.", "ok");
     }).catch(function (e) {
       var code = e && e.code;
-      if (code === "declined") say("Download cancelled. Click the button to try again.");
+      if (code === "declined") say("Download cancelled. Click Download to try again.");
       else if (code === "rate_limited") say("A download prompt is already open. Finish that one first.");
       else if (code === "fetch") say("The file couldn't be loaded. Reload the page and try again.", "err");
       else say("Downloads aren't available in this view. Open this page in claude.ai in a browser.", "err");

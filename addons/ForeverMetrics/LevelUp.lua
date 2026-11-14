@@ -152,9 +152,64 @@ end
 local scanning = false
 local scanProblemShown = false
 
+-- Profession trainers: every recipe they teach, with the skill rank it
+-- needs, saved account-wide by profession for the stats page (missing and
+-- upcoming recipes).
+local function scanProfTrainer()
+  local saved = {}
+  if GetTrainerServiceTypeFilter and SetTrainerServiceTypeFilter then
+    for _, f in ipairs(FILTERS) do
+      saved[f] = GetTrainerServiceTypeFilter(f)
+      pcall(SetTrainerServiceTypeFilter, f, 1)
+    end
+  end
+  if ExpandTrainerSkillLine then pcall(ExpandTrainerSkillLine, 0) end
+
+  local db = FM:DB()
+  db.profTrainer = db.profTrainer or {}
+  local found = 0
+  for i = 1, GetNumTrainerServices() or 0 do
+    local name, rank, category = GetTrainerServiceInfo(i)
+    name, rank, category = safe(name), safe(rank), safe(category)
+    if SERVICE_TYPES[rank] and not SERVICE_TYPES[category] then category, rank = rank, nil end
+    if name and category ~= "header" then
+      local prof, skill = nil, nil
+      if GetTrainerServiceSkillReq then
+        local ok, sn, sr = pcall(GetTrainerServiceSkillReq, i)
+        if ok then prof, skill = safe(sn), tonumber(safe(sr)) end
+      end
+      if prof then
+        local id = serviceDetails(i)
+        local lv = GetTrainerServiceLevelReq and tonumber(safe(GetTrainerServiceLevelReq(i)))
+        local T = db.profTrainer[prof] or { recipes = {} }
+        db.profTrainer[prof] = T
+        T.recipes[id and ("s" .. id) or name] = {
+          n = name, r = (rank and rank ~= "") and rank or nil, spell = id, skill = skill or 0, lv = lv,
+          icon = (GetTrainerServiceIcon and safe(GetTrainerServiceIcon(i))) or spellIcon(id),
+          cost = (GetTrainerServiceCost and safe(GetTrainerServiceCost(i))) or 0,
+        }
+        T.scanned = time()
+        found = found + 1
+      end
+    end
+  end
+
+  if SetTrainerServiceTypeFilter then
+    for _, f in ipairs(FILTERS) do
+      if saved[f] ~= nil then pcall(SetTrainerServiceTypeFilter, f, (saved[f] and saved[f] ~= 0) and 1 or 0) end
+    end
+  end
+  if FM.debug then say(("profession trainer scan: %d recipes saved."):format(found)) end
+end
+
 local function scanTrainer()
   if scanning then return end
-  if IsTradeskillTrainer and IsTradeskillTrainer() then return end -- professions aren't class skills
+  if IsTradeskillTrainer and IsTradeskillTrainer() then
+    scanning = true
+    scanProfTrainer() -- safeScan resets the flag, even on an error
+    scanning = false
+    return
+  end
   if not GetNumTrainerServices then
     if FM.debug then say("trainer scan: this client has no trainer API.") end
     return

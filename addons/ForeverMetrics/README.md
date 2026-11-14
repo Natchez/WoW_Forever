@@ -1,4 +1,4 @@
-# Forever Metrics (v0.15.0)
+# Forever Metrics (v0.16.0)
 
 A RuneMetrics-style tracker for World of Warcraft: Forever. It keeps an activity feed and stats for every character, and you can swap between characters or view totals for your whole account.
 
@@ -40,7 +40,7 @@ A RuneMetrics-style tracker for World of Warcraft: Forever. It keeps an activity
   - **Chat**
   - **Quality of Life**
 
-The window title shows the installed version, like "Forever Metrics v0.15.0", and so does the "loaded" line in chat at login.
+The window title shows the installed version, like "Forever Metrics v0.16.0", and so does the "loaded" line in chat at login.
 
 `<` and `>` at the top right switch characters (including "All Characters") on pages that show one character's data. `/fm settings` opens straight to the Options pages.
 
@@ -110,6 +110,14 @@ Options > **Combat Text** has two tabs.
 These are game settings, so WoW saves them itself. Options this client doesn't have are hidden, and they can't be changed in combat.
 
 **No damage text:** Forever blocks addons from reading the combat log, so floating gains don't show damage or spells. For damage numbers, use the Blizzard tab. (Spell cast and hit text was tried in v0.11 and removed in v0.12.0.)
+
+## Professions and inventory (new in v0.16.0)
+Forever Metrics now remembers, for each character, what the stats page needs to show your crafting:
+- **Recipes:** every recipe you know, with its icon, what it makes and its reagents. Saved when you open a profession window (Enchanting's too).
+- **Trainer recipes:** when you open a profession trainer, every recipe it teaches and the skill each needs. That's how the page lists what you could learn now and what's coming up.
+- **Bags and bank:** what you're carrying, refreshed as your bags change. The bank is saved when you open it.
+
+Nothing new shows in game. To fill the page in: open each profession window once, visit each profession trainer once, open your bank once, then log out and send your saved-variables file.
 
 ## Unit frames (new in v0.13.0)
 Options > **Unit Frames** has switches for Blizzard's own player, target and party frames:

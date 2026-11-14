@@ -1,4 +1,4 @@
-# Forever Metrics (v0.14.0)
+# Forever Metrics (v0.14.1)
 
 A RuneMetrics-style tracker for World of Warcraft: Forever. It keeps an activity feed and stats for every character, and you can swap between characters or view totals for your whole account.
 
@@ -40,7 +40,7 @@ A RuneMetrics-style tracker for World of Warcraft: Forever. It keeps an activity
   - **Chat**
   - **Quality of Life**
 
-The window title shows the installed version, like "Forever Metrics v0.14.0", and so does the "loaded" line in chat at login.
+The window title shows the installed version, like "Forever Metrics v0.14.1", and so does the "loaded" line in chat at login.
 
 `<` and `>` at the top right switch characters (including "All Characters") on pages that show one character's data. `/fm settings` opens straight to the Options pages.
 
@@ -79,7 +79,7 @@ Play with someone else who runs Forever Metrics and the two addons link up.
 ## Level-up celebration (new in v0.7.0)
 When you ding, a pop-up shows your new level, how long the last level took, your stat gains, any new talent point, and the class skills that just unlocked at your trainer, with their costs and your gold.
 
-- **New skills:** the list comes from three places: your class trainer (visit it once and it remembers the full list, including skills you're too low for), your spellbook (every spell it lists with the level it's learned at), and any spell you learn right around the ding. Each skill shows **learned**, its training cost, or **at trainer**. On a level with nothing new, it shows "New skills at level N" with the next level's skills and their icons (v0.11.3). Upcoming skills come from the trainer, so they need a successful trainer read. This keeps it accurate to Forever, with no hard-coded spell lists.
+- **New skills:** the list comes from three places: your class trainer (visit it once and it remembers the full list, including skills you're too low for), your spellbook (every spell it lists with the level it's learned at), and any spell you learn right around the ding. Each skill shows **learned**, its training cost, or **at trainer**. On a level with nothing new, it shows "New skills at level N" with the next level's skills and their icons (v0.11.3). Upcoming skills come from the trainer, so they need a successful trainer read. Before v0.14.1, each spell kept only its highest rank (Forever's trainer reports skills differently from Classic), so visit each class trainer once after updating to fill in every rank. This keeps it accurate to Forever, with no hard-coded spell lists.
 - **In combat:** if you level up mid-fight, the pop-up waits until combat ends.
 - **No missed levels (v0.11.5):** levels are tracked by comparing your real level with the last one recorded, after every level event and at the end of each fight. So a ding from a kill, where Forever hides the event's values, is still recorded. If you gained levels while the addon wasn't running, they're logged at login (without a pop-up).
 - **Blizzard's banner:** the pop-up waits until Blizzard's own "You've Reached Level N" banner has finished (up to 8 seconds), so they don't overlap. Turn on **Hide Blizzard's level-up banner** under Options > Interface > Level Up to skip Blizzard's and show ours right away (v0.11.4).

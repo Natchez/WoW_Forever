@@ -59,11 +59,26 @@ end
 -- Trainer cache
 ---------------------------------------------------------------------------
 
+-- Words the trainer uses for a skill's status (not ranks)
+local SERVICE_TYPES = { available = true, unavailable = true, used = true, header = true }
+
 local function trainerDB()
   local db = FM:DB()
   db.trainer = db.trainer or {}
   db.trainer[classKey()] = db.trainer[classKey()] or { spells = {} }
-  return db.trainer[classKey()]
+  local T = db.trainer[classKey()]
+  -- v0.14.1: skills used to be saved under "name|rank", but Forever's
+  -- trainer gives the status where Classic gives the rank, so every rank of
+  -- a spell overwrote the last. Re-key what was saved by spell ID.
+  if not T.byId then
+    local fixed = {}
+    for key, sp in pairs(T.spells) do
+      if SERVICE_TYPES[sp.r] then sp.r = nil end
+      fixed[sp.id and ("id" .. sp.id) or key] = sp
+    end
+    T.spells, T.byId = fixed, true
+  end
+  return T
 end
 
 local FILTERS = { "available", "unavailable", "used" }
@@ -119,6 +134,16 @@ local function serviceDetails(i)
   return type(id) == "number" and id or nil, levelFromLines(lines)
 end
 
+-- "Rank 3" and the like, from the spell itself
+local function spellRank(id)
+  if not id then return nil end
+  local f = (C_Spell and C_Spell.GetSpellSubtext) or GetSpellSubtext
+  if not f then return nil end
+  local ok, sub = pcall(f, id)
+  sub = ok and safe(sub) or nil
+  if type(sub) == "string" and sub ~= "" then return sub end
+end
+
 local function spellIcon(id)
   if not id then return nil end
   if C_Spell and C_Spell.GetSpellTexture then return C_Spell.GetSpellTexture(id) end
@@ -152,13 +177,17 @@ local function scanTrainer()
   local total, found, noLevel = GetNumTrainerServices() or 0, 0, 0
   for i = 1, total do
     local name, rank, category = GetTrainerServiceInfo(i)
-    name, rank = safe(name), safe(rank)
+    name, rank, category = safe(name), safe(rank), safe(category)
+    -- Forever returns (name, status) where Classic returns (name, rank, status)
+    if SERVICE_TYPES[rank] and not SERVICE_TYPES[category] then category, rank = rank, nil end
     if name and category ~= "header" then
       local id, tipLevel = serviceDetails(i)
       local req = GetTrainerServiceLevelReq and safe(GetTrainerServiceLevelReq(i))
       if not req or req <= 0 then req = tipLevel end
       if req and req > 0 then
-        local key = name .. "|" .. (rank or "")
+        if (not rank or rank == "") and id then rank = spellRank(id) end
+        -- one entry per rank: the spell ID is unique per rank
+        local key = id and ("id" .. id) or (name .. "|" .. (rank or "") .. "|" .. req)
         T.spells[key] = {
           n = name, r = (rank and rank ~= "") and rank or nil, lv = req, id = id,
           icon = (GetTrainerServiceIcon and safe(GetTrainerServiceIcon(i))) or spellIcon(id),
@@ -356,6 +385,7 @@ local function skillsAt(level, extra)
   for _, sk in ipairs(extra or {}) do add(sk, false) end
   for _, e in ipairs(list) do
     e.known = isKnown(e.id)
+    if not e.r then e.r = spellRank(e.id) end
     if not e.known and e.cost then cost = cost + e.cost end
   end
   table.sort(list, function(a, b) return a.n < b.n end)

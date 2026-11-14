@@ -4,3 +4,4 @@ __pycache__/
 Thumbs.db
 download-page/addon-files.json
 download-page/stats.json
+.claude/worktrees/

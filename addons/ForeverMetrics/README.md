@@ -1,4 +1,4 @@
-# Forever Metrics (v0.12.0)
+# Forever Metrics (v0.13.0)
 
 A RuneMetrics-style tracker for World of Warcraft: Forever. It keeps an activity feed and stats for every character, and you can swap between characters or view totals for your whole account.
 
@@ -35,6 +35,7 @@ A RuneMetrics-style tracker for World of Warcraft: Forever. It keeps an activity
 - **Duo:** Partner (scoreboard and highlights) and Options tabs.
 - **Options:**
   - **Interface:** tabs for XP Pill, Feed, and Level Up
+  - **Unit Frames**
   - **Tooltips**
   - **Chat**
   - **Quality of Life**
@@ -105,6 +106,15 @@ Options > **Combat Text** has two tabs.
 These are game settings, so WoW saves them itself. Options this client doesn't have are hidden, and they can't be changed in combat.
 
 **No damage text:** Forever blocks addons from reading the combat log, so floating gains don't show damage or spells. For damage numbers, use the Blizzard tab. (Spell cast and hit text was tried in v0.11 and removed in v0.12.0.)
+
+## Unit frames (new in v0.13.0)
+Options > **Unit Frames** has switches for Blizzard's own player, target and party frames:
+- **Always show health and mana numbers**, instead of only when you hover the bar
+- **Health and mana text:** numbers, percent, both, or only on hover (on clients that have this setting)
+- **Show health and mana as a percent** (on clients that have this setting instead)
+- **Show target of target** and **Show your target's cast bar**
+
+These are game settings, so WoW saves them itself. Options this client doesn't have are hidden, and they can't be changed in combat. The text updates right away; if it doesn't, type `/reload`.
 
 ## Chat (new in v0.8.0)
 - **Hide chat buttons (keeps the tabs):** hides the chat menu, channel, voice, and social buttons, each chat window's scroll buttons and bar, and the combat log filter bar. The chat tabs stay visible. The buttons stay hidden even when chat fades in on hover, and turning the option off brings them back.

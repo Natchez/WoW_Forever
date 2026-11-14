@@ -202,6 +202,52 @@ local function applyChatButtons()
 end
 
 ---------------------------------------------------------------------------
+-- Unit frames: after the health/mana text settings change, redraw the text
+-- on Blizzard's bars so it updates without a /reload. Covers Classic frame
+-- names and the modern ones.
+---------------------------------------------------------------------------
+
+local function statusBars()
+  local list = {}
+  for _, name in ipairs({ "PlayerFrameHealthBar", "PlayerFrameManaBar", "TargetFrameHealthBar", "TargetFrameManaBar",
+                          "PetFrameHealthBar", "PetFrameManaBar", "FocusFrameHealthBar", "FocusFrameManaBar" }) do
+    if _G[name] then list[#list + 1] = _G[name] end
+  end
+  for i = 1, 4 do
+    for _, part in ipairs({ "HealthBar", "ManaBar" }) do
+      local b = _G["PartyMemberFrame" .. i .. part]
+      if b then list[#list + 1] = b end
+    end
+  end
+  -- Modern frames keep their bars deeper inside the frame
+  local function dig(root, ...)
+    local f = root
+    for _, k in ipairs({ ... }) do f = f and f[k] end
+    if f then list[#list + 1] = f end
+  end
+  local pm = PlayerFrame and PlayerFrame.PlayerFrameContent and PlayerFrame.PlayerFrameContent.PlayerFrameContentMain
+  if pm then
+    dig(pm, "HealthBarsContainer", "HealthBar")
+    dig(pm, "ManaBarArea", "ManaBar")
+  end
+  for _, tf in ipairs({ TargetFrame, FocusFrame }) do
+    local tm = tf and tf.TargetFrameContent and tf.TargetFrameContent.TargetFrameContentMain
+    if tm then
+      dig(tm, "HealthBarsContainer", "HealthBar")
+      dig(tm, "ManaBar")
+    end
+  end
+  return list
+end
+
+local function refreshStatusText()
+  for _, bar in ipairs(statusBars()) do
+    if bar.UpdateTextString then pcall(bar.UpdateTextString, bar)
+    elseif TextStatusBar_UpdateTextString then pcall(TextStatusBar_UpdateTextString, bar) end
+  end
+end
+
+---------------------------------------------------------------------------
 -- Events
 ---------------------------------------------------------------------------
 
@@ -213,6 +259,9 @@ function H.PLAYER_LOGIN()
   C_Timer.After(2, function() pcall(applyChatBg); pcall(applyChatButtons) end)
   FM:OnSetting("hideChatBg", function() pcall(applyChatBg) end)
   FM:OnSetting("hideChatButtons", function() pcall(applyChatButtons) end)
+  for _, key in ipairs({ "ufStatusText", "ufStatusDisplay", "ufStatusPercent" }) do
+    FM:OnSetting(key, function() C_Timer.After(0.1, function() pcall(refreshStatusText) end) end)
+  end
   -- new chat windows (and ones that were closed) get the same treatment
   if FCF_OpenNewWindow then
     hooksecurefunc("FCF_OpenNewWindow", function() C_Timer.After(0.2, function() pcall(applyChatBg); pcall(applyChatButtons) end) end)

@@ -197,6 +197,7 @@ FM.SETTINGS = {
   { group = "fct", key = "fctRep",         label = "Reputation",                     default = true },
   { group = "fct", key = "fctSkill",       label = "Skill-ups",                      default = true },
   { group = "fct", key = "fctCasts",       label = "Spells you cast (icon and name)",  default = true },
+  { group = "fct", key = "fctAtTarget",    label = "Show damaging spells above your target (needs enemy nameplates)", default = true },
   { group = "fct", key = "fctHits",        label = "Spell hits on your target (icon and damage, best guess)", default = false },
   { group = "fct", key = "fctXP",          label = "Experience (the XP pill already pops these)", default = false },
   { group = "fct", key = "fctCombatHide",  label = "Hide during combat",             default = false },

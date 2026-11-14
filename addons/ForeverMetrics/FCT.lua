@@ -1,6 +1,7 @@
 -- Forever Metrics: floating gains
 -- Money, loot, reputation, skill-ups, spells you cast (and optionally XP)
--- float up above your character. New lines come in at the bottom and push
+-- float up above your character. Damaging spells (and the optional hits)
+-- float above your target's nameplate instead, when one is showing. New lines come in at the bottom and push
 -- older ones up, with a gap between lines ("Space between lines" option).
 -- These come from chat/system/cast events, which addons can read even where
 -- combat data is hidden.
@@ -26,11 +27,19 @@ local HIT_WINDOW = 2.5   -- seconds after a cast that a hit on your target count
 local MERGE = 0.35       -- quick money/xp gains combine into one
 local DEFAULT_POINT = { "CENTER", "UIParent", "CENTER", 0, 140 }
 
-local anchor, overlay, driver
+local anchor, overlay, driver, targetAnchor
 local editing = false
-local queue, pool, active = {}, {}, {}
-local lastSpawn = 0
+local pool = {}
 local editOwner = {}
+
+-- Two lanes of text: "main" floats at the movable anchor (gains), "target"
+-- floats above your target's nameplate (spell casts and hits).
+local lanes = {
+  main   = { queue = {}, active = {}, lastSpawn = 0 },
+  target = { queue = {}, active = {}, lastSpawn = 0 },
+}
+local LANE_ORDER = { "main", "target" }
+local TARGET_LIFT = 24   -- pixels above the top of the nameplate
 
 local function safe(v)
   if issecretvalue and issecretvalue(v) then return nil end
@@ -86,56 +95,91 @@ local function lineStep()
   return size + (FM:GetSetting("fctSpacing") or 8)
 end
 
-local function animate(_, elapsed)
-  local now = GetTime()
+-- The target's nameplate, if one is showing and addons may use it
+local function targetPlate()
+  if not (C_NamePlate and C_NamePlate.GetNamePlateForUnit) then return end
+  local ok, plate = pcall(C_NamePlate.GetNamePlateForUnit, "target")
+  if not ok or not plate or not plate:IsVisible() then return end
+  if plate.IsForbidden and plate:IsForbidden() then return end
+  return plate
+end
+
+-- Keep the target lane's anchor just above the target. If the nameplate goes
+-- away (target died, out of view), the text stays where it last was.
+local function followTarget()
+  local plate = targetPlate()
+  if not plate then return end
+  local x, top = plate:GetCenter(), plate:GetTop()
+  if not x or not top then return end
+  local k = plate:GetEffectiveScale() / UIParent:GetEffectiveScale()
+  targetAnchor:ClearAllPoints()
+  targetAnchor:SetPoint("BOTTOM", UIParent, "BOTTOMLEFT", x * k, top * k + TARGET_LIFT)
+end
+
+local function runLane(lane, base, now, step, slide)
   -- release the next queued text; newest goes at the bottom (index 1)
-  if #queue > 0 and now - lastSpawn >= GAP then
-    local item = table.remove(queue, 1)
+  if #lane.queue > 0 and now - lane.lastSpawn >= GAP then
+    local item = table.remove(lane.queue, 1)
     local f = acquire()
     f.text:SetFont(fontFor(FM:GetSetting("fctScale") or 1))
     f.text:SetText(item.text)
     f.born, f.slot = now, 0
     f:SetAlpha(0)
     f:Show()
-    table.insert(active, 1, f)
-    lastSpawn = now
+    table.insert(lane.active, 1, f)
+    lane.lastSpawn = now
     -- too many on screen: hurry the oldest along
-    for i = MAX_LINES + 1, #active do
-      local old = active[i]
+    for i = MAX_LINES + 1, #lane.active do
+      local old = lane.active[i]
       old.born = math.min(old.born, now - DUR * 0.8)
     end
   end
 
-  local step = lineStep()
-  local slide = math.min(1, (elapsed or 0.016) * 12)
-  for i = #active, 1, -1 do
-    local f = active[i]
+  for i = #lane.active, 1, -1 do
+    local f = lane.active[i]
     local t = (now - f.born) / DUR
     if t >= 1 then
       f:Hide()
-      table.remove(active, i)
+      table.remove(lane.active, i)
       pool[#pool + 1] = f
     else
       -- glide up to this line's slot, plus a gentle drift of its own
       f.slot = f.slot + ((i - 1) - f.slot) * slide
       local ease = 1 - (1 - t) * (1 - t)
       f:ClearAllPoints()
-      f:SetPoint("CENTER", anchor, "CENTER", 0, f.slot * step + DRIFT * ease)
+      f:SetPoint("CENTER", base, "CENTER", 0, f.slot * step + DRIFT * ease)
       local pop = t < 0.06 and (1.25 - (t / 0.06) * 0.25) or 1  -- quick pop on arrival
       f:SetScale(pop)
       local a = t < 0.05 and t / 0.05 or (t > 0.7 and (1 - (t - 0.7) / 0.3) or 1)
       f:SetAlpha(math.max(0, math.min(1, a)))
     end
   end
-
-  if #queue == 0 and #active == 0 then driver:SetScript("OnUpdate", nil) end
+  return #lane.queue + #lane.active
 end
 
-local function push(text)
+local function animate(_, elapsed)
+  local now = GetTime()
+  local step = lineStep()
+  local slide = math.min(1, (elapsed or 0.016) * 12)
+  local T = lanes.target
+  if #T.queue + #T.active > 0 then followTarget() end
+  local left = runLane(lanes.main, anchor, now, step, slide)
+            + runLane(T, targetAnchor, now, step, slide)
+  if left == 0 then driver:SetScript("OnUpdate", nil) end
+end
+
+-- lane: "main" (default) or "target". Target text falls back to the main
+-- lane when there's no nameplate to show it on.
+local function push(text, lane)
   if not anchor or not FM:GetSetting("fct") then return end
   if FM:GetSetting("fctCombatHide") and UnitAffectingCombat("player") then return end
-  if #queue > 12 then table.remove(queue, 1) end -- never let it fall far behind
-  queue[#queue + 1] = { text = text }
+  local L = lanes.main
+  if lane == "target" and FM:GetSetting("fctAtTarget") and targetPlate() then
+    L = lanes.target
+    if #L.queue + #L.active == 0 then followTarget() end -- start at the target, not where it was last time
+  end
+  if #L.queue > 12 then table.remove(L.queue, 1) end -- never let it fall far behind
+  L.queue[#L.queue + 1] = { text = text }
   driver:SetScript("OnUpdate", animate)
 end
 
@@ -255,7 +299,9 @@ local function onCast(spellID)
   if not name or not icon or SKIP_CASTS[name] then return end
   lastCast = { name = name, icon = icon, t = GetTime(), harmful = isHarmful(spellID, name) }
   if FM:GetSetting("fctCasts") then
-    push(("|T%s:0|t |cffffe9a8%s|r"):format(icon, name))
+    -- harmful spells float over your target; heals and buffs stay with your gains
+    local onTarget = lastCast.harmful and UnitExists("target") and UnitCanAttack("player", "target")
+    push(("|T%s:0|t |cffffe9a8%s|r"):format(icon, name), onTarget and "target" or nil)
   end
 end
 
@@ -268,7 +314,7 @@ local function onUnitCombat(unit, action, flag, amount)
   c.used = true -- one hit per cast
   local crit = safe(flag) == "CRITICAL"
   push(("|T%s:0|t %s%s|r"):format(c.icon, crit and "|cffffd100" or "|cffff8a5c",
-    crit and (amount .. "!") or tostring(amount)))
+    crit and (amount .. "!") or tostring(amount)), "target")
 end
 
 local hitsRegistered = false
@@ -348,6 +394,9 @@ local function build()
   overlay:Hide()
 
   driver = CreateFrame("Frame")
+  targetAnchor = CreateFrame("Frame", nil, UIParent)
+  targetAnchor:SetSize(1, 1)
+  targetAnchor:SetPoint("CENTER", anchor, "CENTER")
   applyPosition()
 
   if EventRegistry and EventRegistry.RegisterCallback then
@@ -414,8 +463,8 @@ function FM:FCTTest()
   if not anchor then return end
   if not FM:GetSetting("fct") then say("floating gains are off. Turn them on first.") return end
   push("+" .. money(12345))
-  push("|T135812:0|t |cffffe9a8Fireball|r")
-  push("|T135812:0|t |cffff8a5c142|r")
+  push("|T135812:0|t |cffffe9a8Fireball|r", "target")  -- above your target if it has a nameplate
+  push("|T135812:0|t |cffff8a5c142|r", "target")
   push("+ |cff1eff00[Sample Green Sword]|r")
   push("|cff6fa8ff+25 Stormwind|r")
   push("|cff69ccf0+1 Mining (76)|r")

@@ -1,7 +1,11 @@
 """Turn a ForeverMetrics SavedVariables file into the stats page's data.
 
 Usage:
-    python tools/stats.py path/to/ForeverMetrics.lua [more files...]
+    python tools/stats.py path/to/ForeverMetrics.lua[=Owner] [more files...]
+
+Give each player's file an owner name after "=" (for example
+"mine.lua=Aaron her.lua=Martha") and the page groups characters by player
+and compares the players head to head.
 
 Writes download-page/stats.json, which the download page reads to show the
 Stats section. That file holds character names and play history, so it is
@@ -349,27 +353,37 @@ def build_duo(db):
     return out
 
 
-def main(paths):
-    if not paths:
+def main(args):
+    if not args:
         sys.exit(__doc__)
-    chars, duo, snapshot = {}, [], 0
-    for path in paths:
+    chars, duo, snapshot, owners = {}, [], 0, []
+    for arg in args:
+        path, _, owner = arg.partition("=")
+        owner = owner or Path(path).stem
+        if owner not in owners:
+            owners.append(owner)
         db = LuaParser(Path(path).read_text(encoding="utf-8")).globals().get("ForeverMetricsDB") or {}
         trainers = as_dict(db.get("profTrainer"))
         for key, c in as_dict(db.get("chars")).items():
             built = build_char(key, as_dict(c), trainers)
+            built["owner"] = owner
             old = chars.get(key)
             if not old or (built["lastSeen"] or 0) >= (old["lastSeen"] or 0):
                 chars[key] = built
             snapshot = max(snapshot, built["lastSeen"] or 0)
-        duo.extend(build_duo(db))
+        # each player's file describes the other one as a duo partner: keep the first player's view
+        if not duo:
+            for d in build_duo(db):
+                d["owner"] = owner
+                duo.append(d)
     data = {
         "snapshot": snapshot,
-        "chars": sorted(chars.values(), key=lambda c: (-(c["level"] or 0), c["name"] or "")),
+        "owners": owners,
+        "chars": sorted(chars.values(), key=lambda c: (owners.index(c["owner"]), -(c["level"] or 0), c["name"] or "")),
         "duo": duo,
     }
     OUT.write_text(json.dumps(data, separators=(",", ":")), encoding="utf-8")
-    print(f"{OUT.relative_to(ROOT)}: {len(chars)} characters, {len(duo)} duo partner(s)")
+    print(f"{OUT.relative_to(ROOT)}: {len(chars)} characters ({', '.join(owners)}), {len(duo)} duo view(s)")
 
 
 if __name__ == "__main__":

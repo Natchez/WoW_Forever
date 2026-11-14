@@ -6,7 +6,7 @@ Our addons for World of Warcraft: Forever.
 
 | Addon | Version | What it does |
 |---|---|---|
-| [ForeverMetrics](addons/ForeverMetrics) | 0.11.5 | Stats, activity feed, loot luck, XP pill, level-up pop-up and duo mode. Type `/fm` in game. See its [README](addons/ForeverMetrics/README.md). |
+| [ForeverMetrics](addons/ForeverMetrics) | 0.12.0 | Stats, activity feed, loot luck, XP pill, level-up pop-up and duo mode. Type `/fm` in game. See its [README](addons/ForeverMetrics/README.md). |
 
 ## Layout
 

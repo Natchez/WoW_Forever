@@ -1,4 +1,4 @@
-# Forever Metrics (v0.11.5)
+# Forever Metrics (v0.12.0)
 
 A RuneMetrics-style tracker for World of Warcraft: Forever. It keeps an activity feed and stats for every character, and you can swap between characters or view totals for your whole account.
 
@@ -92,8 +92,6 @@ Options > **Combat Text** has two tabs.
 **Floating gains** is our own floating text. It rises above your character, one item at a time so nothing overlaps:
 - Money (+1g 20s), items looted with their icon (you choose the quality threshold), reputation (+25 Stormwind), skill-ups (+1 Mining (76)), and optionally XP
 - Quick gains, like several coins or kill XP plus quest XP, combine into one total
-- Spells you cast, with their icon and name (v0.11.0). From v0.11.3 the icon is a real texture, so it still shows when Forever hides the spell from addon code. With `/fm debug` on, chat says when a cast couldn't be shown and why. Damaging spells float above your target's nameplate, next to Blizzard's damage numbers (v0.11.1). That needs enemy nameplates turned on (V by default); without them, spells float with your other gains. Heals and buffs always float with your gains.
-- Optional spell hits on your target, with the spell's icon and the damage, above the target too (v0.11.0, off by default). The game hides which spell did the damage, so this is a best guess: the first hit on your target within a couple of seconds of a harmful cast is shown with that spell. Now and then it may count a partner's hit, and damage-over-time ticks aren't shown.
 - New lines come in at the bottom and push older ones up, with a gap between them. "Space between lines" sets the gap (v0.11.0).
 - Options for text size and for hiding it during combat
 - To move it, use Edit Mode (the "Forever Metrics Floating Text" box) or `/fm fct move`. `/fm fct reset` puts it back.
@@ -106,7 +104,7 @@ Options > **Combat Text** has two tabs.
 
 These are game settings, so WoW saves them itself. Options this client doesn't have are hidden, and they can't be changed in combat.
 
-**Limited damage text:** Forever blocks addons from reading the combat log, so full custom damage numbers (every hit, DoT ticks, scroll areas) aren't possible. For all your damage numbers, use the Blizzard tab.
+**No damage text:** Forever blocks addons from reading the combat log, so floating gains don't show damage or spells. For damage numbers, use the Blizzard tab. (Spell cast and hit text was tried in v0.11 and removed in v0.12.0.)
 
 ## Chat (new in v0.8.0)
 - **Hide chat buttons (keeps the tabs):** hides the chat menu, channel, voice, and social buttons, each chat window's scroll buttons and bar, and the combat log filter bar. The chat tabs stay visible. The buttons stay hidden even when chat fades in on hover, and turning the option off brings them back.

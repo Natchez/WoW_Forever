@@ -1,20 +1,17 @@
 -- Forever Metrics: floating gains
--- Money, loot, reputation, skill-ups, spells you cast (and optionally XP)
--- float up above your character. Damaging spells (and the optional hits)
--- float above your target's nameplate instead, when one is showing. New lines come in at the bottom and push
--- older ones up, with a gap between lines ("Space between lines" option).
--- These come from chat/system/cast events, which addons can read even where
--- combat data is hidden.
+-- Money, loot, reputation, skill-ups (and optionally XP) float up above your
+-- character. New lines come in at the bottom and push older ones up, with a
+-- gap between lines ("Space between lines" option). These all come from
+-- chat/system events, which addons can read even where combat data is hidden.
 --
 -- Position: it joins Edit Mode like the feed and XP pill ("Forever Metrics
 -- Floating Text"), or use /fm fct move.
 --
--- Note: Forever forbids addons from registering COMBAT_LOG_EVENT_UNFILTERED
--- (it triggers the "blocked from an action only available to the Blizzard
--- UI" popup, which pcall can't catch). So damage can't be read per spell.
--- The optional "spell hits" text guesses instead: the first hit on your
--- target shortly after you cast a harmful spell is shown with that spell's
--- icon (UNIT_COMBAT). It's only registered while that option is on.
+-- No damage text: Forever forbids addons from registering
+-- COMBAT_LOG_EVENT_UNFILTERED (it triggers the "blocked from an action only
+-- available to the Blizzard UI" popup, which pcall can't catch). Damage
+-- numbers are left to Blizzard's own combat text, whose settings are on the
+-- "Blizzard" tab of the Combat Text options.
 
 local ADDON, ns = ...
 local FM = ns.FM
@@ -23,36 +20,19 @@ local DUR = 2.6          -- seconds each text floats
 local DRIFT = 40         -- pixels each text drifts up on its own
 local GAP = 0.12         -- seconds between texts leaving the queue
 local MAX_LINES = 8      -- more than this and the oldest fade out early
-local HIT_WINDOW = 2.5   -- seconds after a cast that a hit on your target counts as that spell
 local MERGE = 0.35       -- quick money/xp gains combine into one
 local DEFAULT_POINT = { "CENTER", "UIParent", "CENTER", 0, 140 }
 
-local anchor, overlay, driver, targetAnchor
+local anchor, overlay, driver
 local editing = false
-local pool = {}
+local pool, queue, active = {}, {}, {}
+local lastSpawn = 0
 local editOwner = {}
-
--- Two lanes of text: "main" floats at the movable anchor (gains), "target"
--- floats above your target's nameplate (spell casts and hits).
-local lanes = {
-  main   = { queue = {}, active = {}, lastSpawn = 0 },
-  target = { queue = {}, active = {}, lastSpawn = 0 },
-}
-local LANE_ORDER = { "main", "target" }
-local TARGET_LIFT = 24   -- pixels above the top of the nameplate
 
 local function safe(v)
   if issecretvalue and issecretvalue(v) then return nil end
   return v
 end
-
--- Forever hides some combat values from addon code ("secret values"). Code
--- can't read or compare them, but the game's own text and texture widgets
--- can still display them, so spell names and icons are passed straight
--- through to SetText / SetTexture.
-local function isSecret(v) return issecretvalue and issecretvalue(v) or false end
--- nil check that never touches a secret value (comparing one can error)
-local function missing(v) return not isSecret(v) and v == nil end
 
 local function say(msg) print("|cffe8c27aForever Metrics|r " .. msg) end
 
@@ -93,10 +73,6 @@ local function acquire()
     f.text = f:CreateFontString(nil, "OVERLAY")
     f.text:SetPoint("CENTER")
     f.text:SetShadowOffset(1, -1)
-    -- spell icon, just left of the text
-    f.icon = f:CreateTexture(nil, "OVERLAY")
-    f.icon:SetPoint("RIGHT", f.text, "LEFT", -5, 0)
-    f.icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
   end
   return f
 end
@@ -107,102 +83,56 @@ local function lineStep()
   return size + (FM:GetSetting("fctSpacing") or 8)
 end
 
--- The target's nameplate, if one is showing and addons may use it
-local function targetPlate()
-  if not (C_NamePlate and C_NamePlate.GetNamePlateForUnit) then return end
-  local ok, plate = pcall(C_NamePlate.GetNamePlateForUnit, "target")
-  if not ok or not plate or not plate:IsVisible() then return end
-  if plate.IsForbidden and plate:IsForbidden() then return end
-  return plate
-end
-
--- Keep the target lane's anchor just above the target. If the nameplate goes
--- away (target died, out of view), the text stays where it last was.
-local function followTarget()
-  local plate = targetPlate()
-  if not plate then return end
-  local x, top = plate:GetCenter(), plate:GetTop()
-  if not x or not top then return end
-  local k = plate:GetEffectiveScale() / UIParent:GetEffectiveScale()
-  targetAnchor:ClearAllPoints()
-  targetAnchor:SetPoint("BOTTOM", UIParent, "BOTTOMLEFT", x * k, top * k + TARGET_LIFT)
-end
-
-local function runLane(lane, base, now, step, slide)
+local function animate(_, elapsed)
+  local now = GetTime()
   -- release the next queued text; newest goes at the bottom (index 1)
-  if #lane.queue > 0 and now - lane.lastSpawn >= GAP then
-    local item = table.remove(lane.queue, 1)
+  if #queue > 0 and now - lastSpawn >= GAP then
+    local item = table.remove(queue, 1)
     local f = acquire()
-    local font, size, flags = fontFor(FM:GetSetting("fctScale") or 1)
-    f.text:SetFont(font, size, flags)
+    f.text:SetFont(fontFor(FM:GetSetting("fctScale") or 1))
     f.text:SetText(item.text)
-    local c = item.color
-    f.text:SetTextColor(c and c[1] or 1, c and c[2] or 1, c and c[3] or 1)
-    if item.icon then
-      f.icon:SetTexture(item.icon)
-      f.icon:SetSize(size + 4, size + 4)
-      f.icon:Show()
-    else
-      f.icon:Hide()
-    end
     f.born, f.slot = now, 0
     f:SetAlpha(0)
     f:Show()
-    table.insert(lane.active, 1, f)
-    lane.lastSpawn = now
+    table.insert(active, 1, f)
+    lastSpawn = now
     -- too many on screen: hurry the oldest along
-    for i = MAX_LINES + 1, #lane.active do
-      local old = lane.active[i]
+    for i = MAX_LINES + 1, #active do
+      local old = active[i]
       old.born = math.min(old.born, now - DUR * 0.8)
     end
   end
 
-  for i = #lane.active, 1, -1 do
-    local f = lane.active[i]
+  local step = lineStep()
+  local slide = math.min(1, (elapsed or 0.016) * 12)
+  for i = #active, 1, -1 do
+    local f = active[i]
     local t = (now - f.born) / DUR
     if t >= 1 then
       f:Hide()
-      table.remove(lane.active, i)
+      table.remove(active, i)
       pool[#pool + 1] = f
     else
       -- glide up to this line's slot, plus a gentle drift of its own
       f.slot = f.slot + ((i - 1) - f.slot) * slide
       local ease = 1 - (1 - t) * (1 - t)
       f:ClearAllPoints()
-      f:SetPoint("CENTER", base, "CENTER", 0, f.slot * step + DRIFT * ease)
+      f:SetPoint("CENTER", anchor, "CENTER", 0, f.slot * step + DRIFT * ease)
       local pop = t < 0.06 and (1.25 - (t / 0.06) * 0.25) or 1  -- quick pop on arrival
       f:SetScale(pop)
       local a = t < 0.05 and t / 0.05 or (t > 0.7 and (1 - (t - 0.7) / 0.3) or 1)
       f:SetAlpha(math.max(0, math.min(1, a)))
     end
   end
-  return #lane.queue + #lane.active
+
+  if #queue == 0 and #active == 0 then driver:SetScript("OnUpdate", nil) end
 end
 
-local function animate(_, elapsed)
-  local now = GetTime()
-  local step = lineStep()
-  local slide = math.min(1, (elapsed or 0.016) * 12)
-  local T = lanes.target
-  if #T.queue + #T.active > 0 then followTarget() end
-  local left = runLane(lanes.main, anchor, now, step, slide)
-            + runLane(T, targetAnchor, now, step, slide)
-  if left == 0 then driver:SetScript("OnUpdate", nil) end
-end
-
--- lane: "main" (default) or "target". Target text falls back to the main
--- lane when there's no nameplate to show it on.
--- opts (optional): icon = texture/fileID (may be secret), color = {r, g, b}
-local function push(text, lane, opts)
+local function push(text)
   if not anchor or not FM:GetSetting("fct") then return end
   if FM:GetSetting("fctCombatHide") and UnitAffectingCombat("player") then return end
-  local L = lanes.main
-  if lane == "target" and FM:GetSetting("fctAtTarget") and targetPlate() then
-    L = lanes.target
-    if #L.queue + #L.active == 0 then followTarget() end -- start at the target, not where it was last time
-  end
-  if #L.queue > 12 then table.remove(L.queue, 1) end -- never let it fall far behind
-  L.queue[#L.queue + 1] = { text = text, icon = opts and opts.icon, color = opts and opts.color }
+  if #queue > 12 then table.remove(queue, 1) end -- never let it fall far behind
+  queue[#queue + 1] = { text = text }
   driver:SetScript("OnUpdate", animate)
 end
 
@@ -279,115 +209,6 @@ local function onSkill(msg)
   if skill then push(("|cff69ccf0+1 %s (%s)|r"):format(skill, rank)) end
 end
 
----------------------------------------------------------------------------
--- Spells: an icon + name when you cast, and (optional) the hit that follows
----------------------------------------------------------------------------
-
--- Casts that aren't worth announcing
-local SKIP_CASTS = {
-  ["Attack"] = true, ["Auto Shot"] = true, ["Shoot"] = true,
-  ["Mining"] = true, ["Herb Gathering"] = true, ["Herbalism"] = true, ["Skinning"] = true,
-  ["Fishing"] = true, ["Disenchant"] = true, ["Opening"] = true,
-}
-
--- Name and icon for a spell ID. Values may be secret (see isSecret).
-local function spellInfo(id)
-  if C_Spell and C_Spell.GetSpellInfo then
-    local ok, info = pcall(C_Spell.GetSpellInfo, id)
-    if ok and info then return info.name, info.iconID end
-  end
-  local name, icon
-  if C_Spell and C_Spell.GetSpellName then
-    local ok, v = pcall(C_Spell.GetSpellName, id); if ok then name = v end
-  end
-  if C_Spell and C_Spell.GetSpellTexture then
-    local ok, v = pcall(C_Spell.GetSpellTexture, id); if ok then icon = v end
-  end
-  if (missing(name) or missing(icon)) and GetSpellInfo then
-    local ok, n, _, i = pcall(GetSpellInfo, id)
-    if ok then
-      if missing(name) then name = n end
-      if missing(icon) then icon = i end
-    end
-  end
-  return name, icon
-end
-
--- true / false, or nil when it can't be told
-local function isHarmful(id)
-  if isSecret(id) then return nil end
-  if C_Spell and C_Spell.IsSpellHarmful then
-    local ok, v = pcall(C_Spell.IsSpellHarmful, id)
-    if ok and v ~= nil and not isSecret(v) then return v and true or false end
-  end
-  local name = select(1, spellInfo(id))
-  if IsHarmfulSpell and not isSecret(name) and name then
-    local ok, v = pcall(IsHarmfulSpell, name)
-    if ok and v ~= nil and not isSecret(v) then return v and true or false end
-  end
-  return nil
-end
-
-local function debugCast(msg)
-  if FM.debug then print("|cff888888FM floating text:|r " .. msg) end
-end
-
-local lastCast -- { name, icon, t, harmful, used }
-local CAST_COLOR = { 1, 0.91, 0.66 }
-local HIT_COLOR, CRIT_COLOR = { 1, 0.54, 0.36 }, { 1, 0.82, 0 }
-
-local function onCast(spellID)
-  if missing(spellID) then return end
-  local secretID = isSecret(spellID)
-  local name, icon = spellInfo(spellID)
-  if missing(name) or missing(icon) then
-    debugCast(("skipped a cast: no %s for it (spell ID %s)"):format(missing(name) and "name" or "icon", secretID and "hidden" or tostring(spellID)))
-    return
-  end
-  if not isSecret(name) and SKIP_CASTS[name] then return end
-  local harmful = isHarmful(spellID)
-  local enemy = UnitExists("target") and UnitCanAttack("player", "target")
-  -- if we can't tell, a cast while targeting an enemy counts as an attack
-  if harmful == nil then harmful = enemy and true or false end
-  lastCast = { name = name, icon = icon, t = GetTime(), harmful = harmful }
-  if not FM:GetSetting("fctCasts") then return end
-  -- attacks float over your target; heals and buffs stay with your gains
-  local lane = (harmful and enemy) and "target" or nil
-  debugCast(("cast shown%s%s"):format(secretID and " (hidden spell ID)" or "", lane and " above target" or ""))
-  push(name, lane, { icon = icon, color = CAST_COLOR })
-end
-
-local function onUnitCombat(unit, action, flag, amount)
-  if unit ~= "target" or isSecret(action) or action ~= "WOUND" then return end
-  local c = lastCast
-  if not c or c.used or not c.harmful then return end
-  if GetTime() - c.t > HIT_WINDOW or UnitIsUnit("target", "player") then return end
-  local text, crit
-  if isSecret(amount) then
-    text = amount -- can't check it, but the game can still show it
-  else
-    amount = tonumber(amount)
-    if not amount or amount <= 0 then return end
-    crit = not isSecret(flag) and flag == "CRITICAL"
-    text = crit and (amount .. "!") or tostring(amount)
-  end
-  c.used = true -- one hit per cast
-  push(text, "target", { icon = c.icon, color = crit and CRIT_COLOR or HIT_COLOR })
-end
-
-local hitsRegistered = false
-local function applyHits(ev)
-  local want = FM:GetSetting("fctHits") and true or false
-  if want == hitsRegistered then return end
-  if want then
-    if ev.RegisterUnitEvent then pcall(ev.RegisterUnitEvent, ev, "UNIT_COMBAT", "target")
-    else pcall(ev.RegisterEvent, ev, "UNIT_COMBAT") end
-  else
-    pcall(ev.UnregisterEvent, ev, "UNIT_COMBAT")
-  end
-  hitsRegistered = want
-end
-
 local lastMoney, lastXP, lastMax
 
 ---------------------------------------------------------------------------
@@ -452,9 +273,6 @@ local function build()
   overlay:Hide()
 
   driver = CreateFrame("Frame")
-  targetAnchor = CreateFrame("Frame", nil, UIParent)
-  targetAnchor:SetSize(1, 1)
-  targetAnchor:SetPoint("CENTER", anchor, "CENTER")
   applyPosition()
 
   if EventRegistry and EventRegistry.RegisterCallback then
@@ -469,17 +287,7 @@ end
 local ev = CreateFrame("Frame")
 local H = {}
 
-function H.PLAYER_LOGIN()
-  build()
-  applyHits(ev)
-  FM:OnSetting("fctHits", function() applyHits(ev) end)
-end
-
-function H.UNIT_SPELLCAST_SUCCEEDED(unit, _, spellID)
-  if unit == "player" then onCast(spellID) end
-end
-
-function H.UNIT_COMBAT(...) onUnitCombat(...) end
+function H.PLAYER_LOGIN() build() end
 
 function H.PLAYER_MONEY()
   local m = GetMoney()
@@ -509,9 +317,7 @@ ev:SetScript("OnEvent", function(_, event, ...)
   local ok, err = pcall(H[event], ...)
   if not ok and FM.debug then print("|cffff5555ForeverMetrics fct error|r", event, err) end
 end)
-for event in pairs(H) do
-  if event ~= "UNIT_COMBAT" then pcall(ev.RegisterEvent, ev, event) end -- UNIT_COMBAT only when the option is on
-end
+for event in pairs(H) do pcall(ev.RegisterEvent, ev, event) end
 
 ---------------------------------------------------------------------------
 -- Test + slash
@@ -521,8 +327,6 @@ function FM:FCTTest()
   if not anchor then return end
   if not FM:GetSetting("fct") then say("floating gains are off. Turn them on first.") return end
   push("+" .. money(12345))
-  push("Fireball", "target", { icon = 135812, color = CAST_COLOR })  -- above your target if it has a nameplate
-  push("142", "target", { icon = 135812, color = HIT_COLOR })
   push("+ |cff1eff00[Sample Green Sword]|r")
   push("|cff6fa8ff+25 Stormwind|r")
   push("|cff69ccf0+1 Mining (76)|r")

@@ -641,8 +641,9 @@ local function fillDash()
   if not max or max <= 0 then
     L.body:SetText(("Level %d\nMax level. Nice work!"):format(lvl))
     L.barFill:SetWidth(0.001); L.barRest:SetWidth(0.001)
+    setColor(L.barFill, FM.THEME.bar)
   else
-    local rested = (GetXPExhaustion and GetXPExhaustion()) or 0
+    local rested = tonumber(GetXPExhaustion and GetXPExhaustion()) or 0
     local pct = cur / max
     local eta = xph > 0 and dur((max - cur) / xph * 3600) or "keep going to estimate"
     L.body:SetText(("Level %d  ·  |cffe8c27a%d%%|r\n%s / %s XP  ·  %s to go\nRested: %s\nTime to level: %s"):format(
@@ -650,6 +651,7 @@ local function fillDash()
       rested > 0 and commas(rested) or "none", eta))
     L.barFill:SetWidth(math.max(0.001, inner * math.min(1, pct)))
     L.barRest:SetWidth(math.max(0.001, inner * math.min(1, (cur + rested) / max)))
+    setColor(L.barFill, rested > 0 and FM.THEME.barRested or FM.THEME.bar)
   end
 
   -- Duo

@@ -138,7 +138,8 @@ FM.THEME = {
   bg     = { 0.12, 0.085, 0.055, 0.90 },  -- dark leather brown
   border = { 0.66, 0.51, 0.31, 0.95 },  -- worn gold trim
   bar    = { 0.88, 0.67, 0.30, 1 },     -- amber progress
-  rested = { 0.48, 0.58, 0.80, 0.50 },  -- muted blue for rested
+  rested = { 0.48, 0.58, 0.80, 0.50 },  -- muted blue: how far rested XP reaches
+  barRested = { 0.33, 0.56, 0.95, 1 },  -- the fill while you have rested XP (Blizzard's bar goes blue too)
   hl     = { 0.88, 0.67, 0.30, 0.18 },  -- selection highlight
 }
 

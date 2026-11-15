@@ -1,4 +1,4 @@
-# Forever Metrics (v0.16.1)
+# Forever Metrics (v0.16.2)
 
 A RuneMetrics-style tracker for World of Warcraft: Forever. It keeps an activity feed and stats for every character, and you can swap between characters or view totals for your whole account.
 
@@ -40,7 +40,7 @@ A RuneMetrics-style tracker for World of Warcraft: Forever. It keeps an activity
   - **Chat**
   - **Quality of Life**
 
-The window title shows the installed version, like "Forever Metrics v0.16.1", and so does the "loaded" line in chat at login.
+The window title shows the installed version, like "Forever Metrics v0.16.2", and so does the "loaded" line in chat at login.
 
 `<` and `>` at the top right switch characters (including "All Characters") on pages that show one character's data. `/fm settings` opens straight to the Options pages.
 
@@ -130,6 +130,7 @@ These are game settings, so WoW saves them itself. Options this client doesn't h
 
 ## Chat (new in v0.8.0)
 - **Hide chat buttons (keeps the tabs):** hides the chat menu, channel, voice, and social buttons, each chat window's scroll buttons and bar, and the combat log filter bar. The chat tabs stay visible. The buttons stay hidden even when chat fades in on hover, and turning the option off brings them back.
+- **Hide chat until you mouse over it or type (new in v0.16.2):** chat windows, tabs and chat buttons stay fully invisible. They fade in while your mouse is over a chat window or its tabs, or while you're typing (press Enter), and fade out about 1.5 seconds after. New messages don't bring chat back on their own, so check it now and then for whispers. Links in invisible chat can still be clicked.
 - **Hide the chat window background:** makes every chat window's background fully transparent, so you see just the text. It uses WoW's own chat opacity setting, and turning it off restores the opacity you had before. Blizzard may still briefly show the background while your mouse is over the chat.
 
 ## Quality of Life (new in v0.7.0)

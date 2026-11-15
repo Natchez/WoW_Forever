@@ -245,6 +245,7 @@ FM.SETTINGS = {
   { group = "tooltip", key = "apTotal",        label = "Show total melee AP from item",         default = true },
   { group = "chat",    key = "hideChatBg",     label = "Hide the chat window background",       default = false },
   { group = "chat",    key = "hideChatButtons", label = "Hide chat buttons (keeps the tabs)",   default = false },
+  { group = "chat",    key = "hideChatIdle",   label = "Hide chat until you mouse over it or type", default = false },
   { group = "qol",     key = "sellJunk",       label = "Sell grey items at vendors",            default = false },
   { group = "qol",     key = "autoRepair",     label = "Repair gear at vendors",                default = false },
   { group = "qol",     key = "fastLoot",       label = "Faster auto loot",                      default = false },

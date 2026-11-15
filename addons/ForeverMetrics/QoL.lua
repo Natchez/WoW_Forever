@@ -202,6 +202,104 @@ local function applyChatButtons()
 end
 
 ---------------------------------------------------------------------------
+-- Hide chat until used: fades every chat window, the tab dock and the chat
+-- buttons to fully transparent, and back in while the mouse is over a chat
+-- window (or its tabs) or you're typing. Only alpha changes, so links stay
+-- clickable and nothing protected is touched. Blizzard's own hover fade sets
+-- alpha on some of these too; a SetAlpha hook caps them at ours.
+---------------------------------------------------------------------------
+
+local idle = { alpha = 1, frames = {}, hooked = {}, lastUsed = 0, ticker = nil, setting = false }
+local IDLE_HOLD, IDLE_STEP = 1.5, 0.12  -- seconds shown after you stop; alpha change per tick
+
+local function insideDock(f)
+  local p = f:GetParent()
+  for _ = 1, 6 do
+    if not p then return false end
+    if p == GeneralDockManager then return true end
+    p = p:GetParent()
+  end
+  return false
+end
+
+local function idleFrames()
+  local list, seen = {}, {}
+  local function add(f)
+    if f and f.SetAlpha and not seen[f] then seen[f] = true; list[#list + 1] = f end
+  end
+  add(GeneralDockManager)
+  for i = 1, (NUM_CHAT_WINDOWS or 10) do
+    local cf = _G["ChatFrame" .. i]
+    if cf then
+      add(cf)
+      local tab = _G["ChatFrame" .. i .. "Tab"]
+      -- docked tabs fade with the dock; undocked windows' tabs need their own
+      if tab and not insideDock(tab) then add(tab) end
+      add(_G["ChatFrame" .. i .. "ButtonFrame"] or cf.buttonFrame)
+    end
+  end
+  for _, name in ipairs(CHAT_GLOBAL_BUTTONS) do add(_G[name]) end
+  return list
+end
+
+local function setIdleAlpha(f, a)
+  idle.setting = true
+  pcall(f.SetAlpha, f, a)
+  idle.setting = false
+end
+
+local function chatInUse()
+  for i = 1, (NUM_CHAT_WINDOWS or 10) do
+    local eb = _G["ChatFrame" .. i .. "EditBox"]
+    if eb and eb.HasFocus and eb:HasFocus() then return true end
+    local cf = _G["ChatFrame" .. i]
+    -- the tab row sits just above the window, the edit box just below it
+    if cf and cf:IsShown() and MouseIsOver(cf, 32, -32, -4, 4) then return true end
+  end
+  if GeneralDockManager and GeneralDockManager:IsShown() and MouseIsOver(GeneralDockManager) then return true end
+  return false
+end
+
+local function idleTick()
+  local now = GetTime()
+  if chatInUse() then idle.lastUsed = now end
+  local target = (now - idle.lastUsed < IDLE_HOLD) and 1 or 0
+  if idle.alpha == target then return end
+  if target > idle.alpha then idle.alpha = math.min(1, idle.alpha + IDLE_STEP * 2)
+  else idle.alpha = math.max(0, idle.alpha - IDLE_STEP) end
+  for _, f in ipairs(idle.frames) do setIdleAlpha(f, idle.alpha) end
+end
+
+local function applyChatIdle()
+  local on = FM:GetSetting("hideChatIdle")
+  if on then
+    idle.frames = idleFrames()
+    for _, f in ipairs(idle.frames) do
+      if not idle.hooked[f] then
+        idle.hooked[f] = true
+        hooksecurefunc(f, "SetAlpha", function(self, a)
+          if idle.setting or not FM:GetSetting("hideChatIdle") then return end
+          if a and a > idle.alpha then setIdleAlpha(self, idle.alpha) end
+        end)
+      end
+    end
+    if not idle.ticker then
+      idle.lastUsed = GetTime()
+      idle.ticker = C_Timer.NewTicker(0.05, function()
+        local ok, err = pcall(idleTick)
+        if not ok and FM.debug then print("|cffff6060ForeverMetrics chat:|r " .. tostring(err)) end
+      end)
+    end
+  else
+    if idle.ticker then idle.ticker:Cancel(); idle.ticker = nil end
+    idle.alpha = 1
+    for _, f in ipairs(idle.frames) do setIdleAlpha(f, 1) end
+    -- buttons the other toggle hides go back to hidden
+    pcall(applyChatButtons)
+  end
+end
+
+---------------------------------------------------------------------------
 -- Unit frames: after the health/mana text settings change, redraw the text
 -- on Blizzard's bars so it updates without a /reload. Covers Classic frame
 -- names and the modern ones.
@@ -256,15 +354,16 @@ local H = {}
 
 function H.PLAYER_LOGIN()
   -- chat windows finish setting themselves up just after login
-  C_Timer.After(2, function() pcall(applyChatBg); pcall(applyChatButtons) end)
+  C_Timer.After(2, function() pcall(applyChatBg); pcall(applyChatButtons); pcall(applyChatIdle) end)
   FM:OnSetting("hideChatBg", function() pcall(applyChatBg) end)
+  FM:OnSetting("hideChatIdle", function() pcall(applyChatIdle) end)
   FM:OnSetting("hideChatButtons", function() pcall(applyChatButtons) end)
   for _, key in ipairs({ "ufStatusText", "ufStatusDisplay", "ufStatusPercent" }) do
     FM:OnSetting(key, function() C_Timer.After(0.1, function() pcall(refreshStatusText) end) end)
   end
   -- new chat windows (and ones that were closed) get the same treatment
   if FCF_OpenNewWindow then
-    hooksecurefunc("FCF_OpenNewWindow", function() C_Timer.After(0.2, function() pcall(applyChatBg); pcall(applyChatButtons) end) end)
+    hooksecurefunc("FCF_OpenNewWindow", function() C_Timer.After(0.2, function() pcall(applyChatBg); pcall(applyChatButtons); pcall(applyChatIdle) end) end)
   end
 end
 

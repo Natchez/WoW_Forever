@@ -7,6 +7,7 @@ Our addons for World of Warcraft: Forever.
 | Addon | Version | What it does |
 |---|---|---|
 | [ForeverMetrics](addons/ForeverMetrics) | 0.16.1 | Stats, activity feed, loot luck, XP pill, level-up pop-up and duo mode. Type `/fm` in game. See its [README](addons/ForeverMetrics/README.md). |
+| [ForeverBuffs](addons/ForeverBuffs) | 0.1.0 | A row of icons for the self-buffs you're missing; click one to cast it. Type `/fb` in game. See its [README](addons/ForeverBuffs/README.md). |
 
 ## Layout
 
@@ -15,6 +16,7 @@ addons/
   ForeverMetrics/        one folder per addon, exactly as it goes in Interface\AddOns
     ForeverMetrics.toc   the .toc name must match the folder name
     ...
+  ForeverBuffs/
 download-page/           the claude.ai download page for ForeverMetrics
 tools/
   package.py             builds dist/<Addon>-<version>.zip

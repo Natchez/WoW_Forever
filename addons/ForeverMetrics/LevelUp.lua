@@ -563,7 +563,7 @@ local function build()
   -- skills list (scrolls when long)
   local sf = CreateFrame("ScrollFrame", nil, modal, "UIPanelScrollFrameTemplate")
   sf:SetPoint("TOPLEFT", RIGHT_X, -18)
-  sf:SetPoint("BOTTOMRIGHT", -32, 70)
+  sf:SetPoint("BOTTOMRIGHT", -32, 100)  -- room for the three-line cost footer
   local child = CreateFrame("Frame", nil, sf)
   child:SetSize(W - RIGHT_X - 32, 10)
   sf:SetScrollChild(child)
@@ -579,6 +579,7 @@ local function build()
   modal.foot:SetPoint("BOTTOMLEFT", RIGHT_X + 2, 52)
   modal.foot:SetPoint("RIGHT", modal, "RIGHT", -20, 0)
   modal.foot:SetJustifyH("LEFT")
+  modal.foot:SetSpacing(3)
 
   modal.ok = CreateFrame("Button", nil, modal, "UIPanelButtonTemplate")
   modal.ok:SetSize(110, 24)
@@ -715,15 +716,34 @@ local function fillSkills(data)
   end
   modal.listChild:SetHeight(math.max(y, 10))
 
-  -- cost line under the list
-  local have = GetMoney()
-  if (data.cost or 0) > 0 then
-    local t = ("Train now: %s  ·  you have %s"):format(money(data.cost), money(have))
-    if have < data.cost then t = t .. "  |cffff6b6b(short)|r" end
-    modal.foot:SetText(t)
-  elseif nextLevel and nextCost > 0 then
-    modal.foot:SetText(("Level %d training: %s  ·  you have %s"):format(nextLevel, money(nextCost), money(have)))
+  -- cost footer: everything untrained up to this level (skills skipped at
+  -- earlier levels included), then the running total with the next level
+  local have = tonumber(safe(GetMoney())) or 0
+  local now, earlier = 0, 0
+  for L = 1, data.level do
+    local _, c = skillsAt(L)
+    now = now + c
+    if L < data.level then earlier = earlier + c end
   end
+  local lines = {}
+  if now > 0 then
+    local t = ("Train now: %s"):format(money(now))
+    if earlier > 0 then t = t .. ("  |cffa8977a(%s from earlier levels)|r"):format(money(earlier)) end
+    lines[#lines + 1] = t
+  else
+    lines[#lines + 1] = "|cff7fd36bAll trained up|r"
+  end
+  local total = now
+  if nextLevel and nextCost > 0 then
+    total = now + nextCost
+    lines[#lines + 1] = ("Level %d adds %s  ·  total |cffe8c27a%s|r"):format(nextLevel, money(nextCost), money(total))
+  end
+  local t = ("You have %s"):format(money(have))
+  if total > 0 and have < total then
+    t = t .. ("  |cffff6b6b(%s short)|r"):format(money(total - have))
+  end
+  lines[#lines + 1] = t
+  modal.foot:SetText(table.concat(lines, "\n"))
 end
 
 local function show(data, keepAnim)

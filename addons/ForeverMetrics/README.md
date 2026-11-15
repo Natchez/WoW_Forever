@@ -1,4 +1,4 @@
-# Forever Metrics (v0.16.3)
+# Forever Metrics (v0.16.4)
 
 A RuneMetrics-style tracker for World of Warcraft: Forever. It keeps an activity feed and stats for every character, and you can swap between characters or view totals for your whole account.
 
@@ -40,7 +40,7 @@ A RuneMetrics-style tracker for World of Warcraft: Forever. It keeps an activity
   - **Chat**
   - **Quality of Life**
 
-The window title shows the installed version, like "Forever Metrics v0.16.3", and so does the "loaded" line in chat at login.
+The window title shows the installed version, like "Forever Metrics v0.16.4", and so does the "loaded" line in chat at login.
 
 `<` and `>` at the top right switch characters (including "All Characters") on pages that show one character's data. `/fm settings` opens straight to the Options pages.
 
@@ -77,7 +77,7 @@ Play with someone else who runs Forever Metrics and the two addons link up.
 - Both of you should run the same version of Forever Metrics.
 
 ## Level-up celebration (new in v0.7.0)
-From v0.15.0 the pop-up has two columns: your new level, how long the last one took, stat gains and talent points on the left, and a scrolling list of skills on the right: what's new this level, then everything coming at the next level that brings new skills, with the training cost underneath. On a controller, the D-pad scrolls the list.
+From v0.15.0 the pop-up has two columns: your new level, how long the last one took, stat gains and talent points on the left, and a scrolling list of skills on the right: what's new this level, then everything coming at the next level that brings new skills, with the training cost underneath. From v0.16.4 the cost footer totals it up: **Train now** is everything you haven't trained up to this level, including skills you skipped at earlier levels; **Level N adds ... total** adds the next level's skills to that; and **You have** shows your gold and how much you're short. On a controller, the D-pad scrolls the list.
 
 When you ding, a pop-up shows your new level, how long the last level took, your stat gains, any new talent point, and the class skills that just unlocked at your trainer, with their costs and your gold.
 

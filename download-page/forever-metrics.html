@@ -111,13 +111,6 @@ button:disabled { opacity: .55; cursor: default; filter: none; }
 .bars .fl { height: 100%; background: var(--bar); border-radius: 0 4px 4px 0; min-width: 2px; }
 .bars .vl { font: 12.5px/1 var(--mono); color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
 
-/* sessions column chart */
-.cols { position: relative; height: 150px; display: flex; align-items: flex-end; gap: 4px; padding-top: 18px; border-bottom: 1px solid var(--rule); }
-.cols .c { flex: 1 1 0; min-width: 6px; background: var(--bar); border-radius: 4px 4px 0 0; position: relative; }
-.cols .c:hover, .cols .c:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
-.cols .avg { position: absolute; left: 0; right: 0; border-top: 1px dashed var(--muted); pointer-events: none; }
-.cols .avg span { position: absolute; right: 0; top: -17px; font: 11px/1 var(--mono); color: var(--muted); background: var(--panel); padding: 0 3px; }
-.axis { display: flex; justify-content: space-between; font: 11px/1 var(--mono); color: var(--faint); margin-top: 6px; }
 
 /* loot */
 .qual { display: flex; flex-wrap: wrap; gap: 6px; font-size: 13px; margin-bottom: 12px; }
@@ -173,7 +166,7 @@ summary { cursor: pointer; font-weight: 600; }
 .cmds dt { font: 12.5px/1.6 var(--mono); color: var(--gold); }
 .cmds dd { margin: 0; min-width: 0; }
 @media (max-width: 440px) { .cmds { grid-template-columns: 1fr; } }
-@media (prefers-reduced-motion: no-preference) { .fl, .c { transition: width .3s ease, height .3s ease; } }
+@media (prefers-reduced-motion: no-preference) { .fl { transition: width .3s ease, height .3s ease; } }
 
 /* download box in the header */
 .getbox { display: grid; gap: 6px; justify-items: start; }
@@ -414,42 +407,12 @@ select:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
     // overview
     var s = c.stats;
     box.appendChild(panel(c.name + " · level " + c.level + " " + cap(c["class"]), true, [el("div", { "class": "kv" }, [
-      ["XP per hour", c.xpPerHour ? n(c.xpPerHour) : "—"], ["Kills", n(s.kills)], ["Quests", n(s.quests)],
+      ["Time tracked", dur(c.played)], ["Kills", n(s.kills)], ["Quests", n(s.quests)],
       ["Deaths", n(s.deaths)], ["Gold earned", gold(s.goldEarned)], ["Gold spent", gold(s.goldSpent)],
       ["Looted from mobs", gold(s.goldLooted)], ["Last played", day(c.lastSeen)]
     ].map(function (x) { return el("div", null, [el("b", { text: x[1] }), el("span", { text: x[0] })]); }))]));
 
     renderProfessions(box, c);
-
-    // time per level
-    var lv = Object.keys(c.levelTimes).map(Number).sort(function (a, b) { return a - b; })
-      .map(function (k) { return { name: "Level " + (k - 1) + " → " + k, value: c.levelTimes[k] }; })
-      .filter(function (r) { return r.value > 0; });
-    box.appendChild(panel("Time per level", false, [barList(lv, dur) || empty("Shows up as this character levels with the addon running.")]));
-
-    // where the time went
-    box.appendChild(panel("Where the time went", false, [barList(c.zones, dur) || empty("No zones yet.")]));
-
-    // sessions
-    var ses = c.sessions.filter(function (x) { return x.dur >= 600; });
-    var sesBody;
-    if (ses.length < 2) {
-      sesBody = [empty("Needs a couple of play sessions of 10 minutes or more.")];
-    } else {
-      var rates = ses.map(function (x) { return x.xp / (x.dur / 3600); });
-      var max = Math.max.apply(null, rates) || 1;
-      var avg = c.xpPerHour || 0;
-      var cols = el("div", { "class": "cols", role: "img", "aria-label": "XP per hour for each of " + ses.length + " sessions" },
-        ses.map(function (x, i) {
-          return el("div", { "class": "c", tabindex: "0", style: "height:" + Math.max(1, 100 * rates[i] / max) + "%",
-            "data-tip": when(x.start) + " · " + dur(x.dur) + "\n" + n(Math.round(rates[i])) + " XP/hr · " + n(x.kills) + " kills · " + n(x.quests) + " quests" });
-        }));
-      if (avg) {
-        cols.appendChild(el("div", { "class": "avg", style: "bottom:" + (100 * avg / max) + "%" }, [el("span", { text: "avg " + n(avg) })]));
-      }
-      sesBody = [cols, el("div", { "class": "axis" }, [el("span", { text: day(ses[0].start) }), el("span", { text: day(ses[ses.length - 1].start) })])];
-    }
-    box.appendChild(panel("XP per hour, by session", false, sesBody));
 
     // loot, filterable by quality
     box.appendChild(renderLoot(c));
@@ -471,11 +434,6 @@ select:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
       ]);
     }) : [empty("No gathering yet.")]));
 
-    // recent activity
-    var feed = c.feed.slice().reverse();
-    box.appendChild(panel("Recent activity", true, [feed.length ? el("ul", { "class": "feed" }, feed.map(function (e) {
-      return el("li", null, [el("time", { text: when(e.t) }), el("span", { text: e.x })]);
-    })) : empty("Nothing yet.")]));
   }
 
   // ---------- loot ----------
@@ -598,11 +556,13 @@ select:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
         } else {
           cols.push(col("Known recipes", [], "Open your " + P.name + " window once in game (ForeverMetrics 0.16 or newer) to list your recipes and what you can craft."));
         }
-        if (P.trainerKnown) {
+        if (P.trainerKnown && P.recipes.length) {
           cols.push(col("Learn now (" + P.missing.length + ")", P.missing.map(function (r) {
             r.tip = r.n + (r.r ? " (" + r.r + ")" : "") + "\nNeeds " + P.name + " " + r.skill + (r.lv ? ", level " + r.lv : "") + "\nCosts " + gold(r.cost);
             return recipeRow(r, gold(r.cost));
           }), "You know everything your trainer teaches at this skill."));
+        }
+        if (P.trainerKnown) {
           cols.push(col("Coming up", P.upcoming.map(function (r) {
             r.tip = r.n + (r.r ? " (" + r.r + ")" : "") + "\nUnlocks at " + P.name + " " + r.skill + (r.lv ? ", level " + r.lv : "") + "\nCosts " + gold(r.cost);
             return recipeRow(r, "at " + r.skill, true);

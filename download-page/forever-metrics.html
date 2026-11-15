@@ -120,11 +120,17 @@ button:disabled { opacity: .55; cursor: default; filter: none; }
 .axis { display: flex; justify-content: space-between; font: 11px/1 var(--mono); color: var(--faint); margin-top: 6px; }
 
 /* loot */
-.qual { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 13px; margin-bottom: 12px; }
-.qual span { display: inline-flex; align-items: center; gap: 6px; }
+.qual { display: flex; flex-wrap: wrap; gap: 6px; font-size: 13px; margin-bottom: 12px; }
+.chip { display: inline-flex; align-items: center; gap: 6px; font: 500 12.5px/1 var(--body); color: var(--ink);
+        background: transparent; border: 1px solid var(--rule); border-radius: 999px; padding: 6px 10px; cursor: pointer; }
+.chip:hover { filter: none; border-color: var(--gold); }
+.chip[aria-pressed="true"] { border-color: var(--gold); background: var(--gold-soft); }
+.chip .ct { color: var(--muted); font-variant-numeric: tabular-nums; }
+.lootlist { max-height: 360px; overflow-y: auto; }
+.finds .qty { font: 12px/1 var(--mono); color: var(--muted); }
 .sw { width: 10px; height: 10px; border-radius: 2px; box-shadow: 0 0 0 1px var(--faint); flex: none; }
 .finds { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; font-size: 13px; }
-.finds li { display: grid; grid-template-columns: auto 1fr; gap: 2px 8px; align-items: center; }
+.finds li { display: grid; grid-template-columns: auto 1fr auto; gap: 2px 8px; align-items: center; }
 .finds .meta { grid-column: 2; font-size: 12px; color: var(--muted); }
 
 /* feed */
@@ -336,7 +342,9 @@ select:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
   function ico(key, cls, extraStyle) {
     var name = DATA && DATA.icons && DATA.icons[key];
     if (!name) return null;
-    return el("img", { "class": "ico" + (cls ? " " + cls : ""), src: "icons/" + name + ".jpg", alt: "", loading: "lazy",
+    var src = DATA.iconData && DATA.iconData[name];
+    if (!src) return null;
+    return el("img", { "class": "ico" + (cls ? " " + cls : ""), src: src, alt: "",
       style: extraStyle || "" });
   }
   function firstIco(keys, cls) {
@@ -443,23 +451,8 @@ select:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
     }
     box.appendChild(panel("XP per hour, by session", false, sesBody));
 
-    // loot
-    var q = c.loot.q, qual = el("div", { "class": "qual" });
-    QUAL.forEach(function (Q, i) {
-      if (q[i]) qual.appendChild(el("span", null, [el("span", { "class": "sw", style: "background:" + Q.c }), Q.n + " " + n(q[i])]));
-    });
-    var finds = c.loot.notable.slice().reverse();
-    box.appendChild(panel("Loot", false, [
-      qual.childNodes.length ? qual : empty("No loot tracked yet."),
-      finds.length ? el("ul", { "class": "finds" }, finds.map(function (f) {
-        var Q = QUAL[f.q] || QUAL[1];
-        var icon = f.id && ico("item:" + f.id, null, "box-shadow:0 0 0 1.5px " + Q.c);
-        return el("li", null, [icon || el("span", { "class": "sw", style: "background:" + Q.c }), el("span", { text: f.name }),
-          el("span", { "class": "meta", text: [f.mob, f.zone, f.kill ? "kill #" + n(f.kill) : "", day(f.t)].filter(Boolean).join(" · ") })]);
-      })) : null,
-      c.loot.cloth.length ? el("p", { "class": "muted", style: "margin:12px 0 0;font-size:13px",
-        text: "Cloth: " + c.loot.cloth.map(function (x) { return x.name.replace(" Cloth", "") + " " + n(x.value); }).join(" · ") }) : null
-    ]));
+    // loot, filterable by quality
+    box.appendChild(renderLoot(c));
 
     // most hunted
     box.appendChild(panel("Most hunted", false, [barList(c.kills, n, function (r) { return r.name + ": " + n(r.value) + " kills"; }) || empty("No kills yet.")]));
@@ -483,6 +476,73 @@ select:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
     box.appendChild(panel("Recent activity", true, [feed.length ? el("ul", { "class": "feed" }, feed.map(function (e) {
       return el("li", null, [el("time", { text: when(e.t) }), el("span", { text: e.x })]);
     })) : empty("Nothing yet.")]));
+  }
+
+  // ---------- loot ----------
+  var lootFilter = store("fm-loot") || "all";
+  function renderLoot(c) {
+    var q = c.loot.q, items = c.loot.items || [], finds = c.loot.notable.slice().reverse();
+    var wrap = el("div", { "class": "panel" }, [el("h3", { text: "Loot" })]);
+    var chips = el("div", { "class": "qual", role: "group", "aria-label": "Filter loot by quality" });
+    var listBox = el("div", { "class": "lootlist" });
+    var total = 0;
+    QUAL.forEach(function (Q, i) { total += q[i] || 0; });
+    if (!total) { wrap.appendChild(empty("No loot tracked yet.")); return wrap; }
+
+    function chip(key, label, count, color) {
+      var b = el("button", { "class": "chip", type: "button", "aria-pressed": String(lootFilter === key) }, [
+        color ? el("span", { "class": "sw", style: "background:" + color }) : null,
+        label, el("span", { "class": "ct", text: n(count) })
+      ]);
+      b.addEventListener("click", function () {
+        lootFilter = key; store("fm-loot", key);
+        Array.prototype.forEach.call(chips.children, function (x) { x.setAttribute("aria-pressed", String(x === b)); });
+        fill();
+      });
+      chips.appendChild(b);
+    }
+    // a saved filter this character has nothing in falls back to All
+    if (lootFilter !== "all" && !q[Number(lootFilter)]) lootFilter = "all";
+    chip("all", "All", total);
+    QUAL.forEach(function (Q, i) { if (q[i]) chip(String(i), Q.n, q[i], Q.c); });
+
+    function row(item, meta, qty) {
+      var Q = QUAL[item.q] || QUAL[1];
+      var icon = firstIco(["item:" + item.id, "name:" + item.name], null);
+      if (icon) icon.style.boxShadow = "0 0 0 1.5px " + Q.c;
+      return el("li", null, [icon || el("span", { "class": "sw", style: "background:" + Q.c }),
+        el("span", { text: item.name }), el("span", { "class": "qty", text: qty || "" }),
+        meta ? el("span", { "class": "meta", text: meta }) : null]);
+    }
+    function fill() {
+      listBox.textContent = "";
+      var want = lootFilter === "all" ? null : Number(lootFilter);
+      var parts = [];
+      // every item looted, counted (from ForeverMetrics 0.16.1)
+      var tallies = items.filter(function (x) { return want === null || x.q === want; });
+      // green-or-better finds with where they dropped
+      var fs = finds.filter(function (f) { return want === null || f.q === want; });
+      if (fs.length && (want === null || want >= 2)) {
+        parts.push(el("h4", { style: "margin:4px 0 8px;font:600 12.5px/1.2 var(--body);color:var(--muted)", text: "Recent finds" }));
+        parts.push(el("ul", { "class": "finds" }, fs.map(function (f) {
+          return row(f, [f.mob, f.zone, f.kill ? "kill #" + n(f.kill) : "", day(f.t)].filter(Boolean).join(" · "));
+        })));
+      }
+      if (tallies.length) {
+        parts.push(el("h4", { style: "margin:14px 0 8px;font:600 12.5px/1.2 var(--body);color:var(--muted)", text: "Everything looted" }));
+        parts.push(el("ul", { "class": "finds" }, tallies.slice(0, 60).map(function (x) { return row(x, null, "×" + n(x.c)); })));
+      } else if (want !== null && want < 2) {
+        parts.push(empty("Poor and common items are only counted so far. From ForeverMetrics 0.16.1 each item is listed by name here."));
+      }
+      if (!parts.length) parts.push(empty("Nothing in this category yet."));
+      parts.forEach(function (x) { listBox.appendChild(x); });
+    }
+    fill();
+    wrap.appendChild(chips);
+    wrap.appendChild(listBox);
+    if (c.loot.cloth.length) wrap.appendChild(el("p", { "class": "muted", style: "margin:12px 0 0;font-size:13px",
+      text: "Cloth: " + c.loot.cloth.map(function (x) { return x.name.replace(" Cloth", "") + " " + n(x.value); }).join(" · ") }));
+    return wrap;
   }
 
   // ---------- professions ----------

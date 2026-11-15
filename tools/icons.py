@@ -11,7 +11,7 @@ download-page/icons/, and writes the mapping back into stats.json as
 
 Lookups are cached in download-page/icons/cache.json, so reruns only fetch
 what's new. Icons are Blizzard's art: they're gitignored and only published
-with the private page. Needs network access to nether.wowhead.com and
+with the private page, embedded in stats.json. Needs network access to nether.wowhead.com and
 wow.zamimg.com.
 """
 import json
@@ -77,7 +77,7 @@ def main():
     classes, profs = set(), set()
     for c in data["chars"]:
         classes.add(c.get("class"))
-        for n in c["loot"]["notable"]:
+        for n in c["loot"]["notable"] + c["loot"].get("items", []):
             if n.get("id"):
                 items.add(n["id"])
         for e in c.get("reagents", []):
@@ -132,6 +132,11 @@ def main():
     for k in missing:
         icons.pop(k, None)
     data["icons"] = icons
+    # The viewer can't load the icons as separate image files, so embed each
+    # one (about 2 KB) in stats.json as a data: URI the page uses directly.
+    import base64
+    data["iconData"] = {name: "data:image/jpeg;base64," + base64.b64encode((ICONS / f"{name}.jpg").read_bytes()).decode()
+                        for name in sorted(set(icons.values()))}
     STATS.write_text(json.dumps(data, separators=(",", ":")), encoding="utf-8")
     files = len(list(ICONS.glob("*.jpg")))
     print(f"{len(icons)} icons mapped, {files} image files in {ICONS.relative_to(ROOT)}"

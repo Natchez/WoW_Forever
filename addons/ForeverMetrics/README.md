@@ -1,4 +1,4 @@
-# Forever Metrics (v0.16.0)
+# Forever Metrics (v0.16.1)
 
 A RuneMetrics-style tracker for World of Warcraft: Forever. It keeps an activity feed and stats for every character, and you can swap between characters or view totals for your whole account.
 
@@ -40,7 +40,7 @@ A RuneMetrics-style tracker for World of Warcraft: Forever. It keeps an activity
   - **Chat**
   - **Quality of Life**
 
-The window title shows the installed version, like "Forever Metrics v0.16.0", and so does the "loaded" line in chat at login.
+The window title shows the installed version, like "Forever Metrics v0.16.1", and so does the "loaded" line in chat at login.
 
 `<` and `>` at the top right switch characters (including "All Characters") on pages that show one character's data. `/fm settings` opens straight to the Options pages.
 
@@ -56,7 +56,7 @@ The Activity section has three tabs:
 - **Loot log**: how many drops of each quality you've looted, cloth totals (linen, wool, silk...), and recent green-or-better finds with the mob, zone, and kill number they dropped on.
 - **Luck**: your drop rates (like "1 green per 42 kills"), kills since your last green and blue, your longest drought, your luckiest zones, your most-hunted mobs, and a log of every blue you've found.
 
-Loot tracking counts each corpse once and skips gathering nodes. It started with v0.4.0, so older kills don't count toward your rates.
+Loot tracking counts each corpse once and skips gathering nodes. From v0.16.1 it also tallies every item you loot by name, quality and count, so the stats page can list loot of every quality, poor and common included. It started with v0.4.0, so older kills don't count toward your rates.
 
 ## Duo mode (new in v0.5.0)
 Play with someone else who runs Forever Metrics and the two addons link up.

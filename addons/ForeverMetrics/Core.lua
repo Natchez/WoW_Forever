@@ -93,6 +93,7 @@ local function ensureLoot(c)
   L.mobs = L.mobs or {}       -- mob -> { kills, greens, blues, purples }
   L.zones = L.zones or {}     -- zone -> { kills, greens, blues, purples }
   L.notable = L.notable or {} -- green+ finds, oldest first
+  L.items = L.items or {}     -- every item looted from corpses: id (or name) -> { n, q, id, c }
   L.lastGreenKill = L.lastGreenKill or c.stats.kills
   L.lastBlueKill = L.lastBlueKill or c.stats.kills
   L.longestDry = L.longestDry or 0
@@ -597,6 +598,13 @@ function FM:RecordCorpseLoot()
     if name and quality and (qty or 0) > 0 then
       L.q[quality] = (L.q[quality] or 0) + 1
       if CLOTH_SET[name] then L.cloth[name] = (L.cloth[name] or 0) + qty end
+      -- tally every item so the stats page can list loot by quality
+      local slotLink = GetLootSlotLink and safe(GetLootSlotLink(slot))
+      local iid = type(slotLink) == "string" and tonumber(slotLink:match("|Hitem:(%d+)")) or nil
+      local key = iid or name
+      local tally = L.items[key] or { n = name, q = quality, id = iid, c = 0 }
+      tally.c = tally.c + qty
+      L.items[key] = tally
       if quality >= 2 then
         local field = quality >= 4 and "purples" or (quality == 3 and "blues" or "greens")
         bump(L.mobs, mob, field); bump(L.zones, zone, field)

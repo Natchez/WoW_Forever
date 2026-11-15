@@ -1,0 +1,763 @@
+<title>FC WoW Addons</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a stats ledger. Header strip with the "Get the addon" dialog, a
+   row of totals, a character roster you pick from, that character's
+   detail panels in a two-column grid, then the duo section. Colors echo the
+   addon's own brown leather + gold trim. */
+:root {
+  --bg: #f3ece1;
+  --panel: #fbf7f0;
+  --ink: #2b2016;
+  --muted: #6e5c48;
+  --faint: #a8957c;
+  --gold: #9a6b22;
+  --gold-soft: #e7d2a8;
+  --rule: #dccbb0;
+  --track: #ece2d1;
+  --bar: #9a6b22;
+  --you: #2a78d6;
+  --her: #e87ba4;
+  --btn-ink: #fffaf0;
+  --ok: #3f7d3a;
+  --err: #a8382c;
+  --display: "Cinzel", "Trajan Pro", Georgia, serif;
+  --body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #17110b; --panel: #221910; --ink: #f1e6d4; --muted: #b49f84; --faint: #7d6a53;
+    --gold: #e1b45e; --gold-soft: #4a3820; --rule: #3d2e1d; --track: #33261a; --bar: #d9a94f;
+    --you: #3987e5; --her: #d55181;
+    --btn-ink: #1c140b; --ok: #8fd17f; --err: #f08a7c; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #17110b; --panel: #221910; --ink: #f1e6d4; --muted: #b49f84; --faint: #7d6a53;
+  --gold: #e1b45e; --gold-soft: #4a3820; --rule: #3d2e1d; --track: #33261a; --bar: #d9a94f;
+  --you: #3987e5; --her: #d55181;
+  --btn-ink: #1c140b; --ok: #8fd17f; --err: #f08a7c; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 14px/1.55 var(--body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 28px 56px;
+}
+main { max-width: 1060px; margin: 0 auto; display: grid; gap: 28px; }
+h1 { font: 700 clamp(26px, 5vw, 36px)/1.1 var(--display); margin: 0; letter-spacing: .01em; }
+h2 { font: 600 18px/1.3 var(--display); margin: 0; letter-spacing: .02em; }
+h3 { font: 600 12px/1.2 var(--mono); margin: 0 0 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.eyebrow { font: 500 12px/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--gold); }
+.muted { color: var(--muted); }
+.num { font-variant-numeric: tabular-nums; }
+code { font: 12.5px/1.4 var(--mono); background: var(--gold-soft); padding: 1px 6px; border-radius: 4px; overflow-wrap: anywhere; }
+
+/* header */
+.top { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 14px 24px; }
+.top .titles { display: grid; gap: 8px; min-width: 0; }
+.snap { font: 12.5px/1.4 var(--mono); color: var(--muted); }
+button {
+  font: 600 14px/1 var(--body); color: var(--btn-ink); background: var(--gold);
+  border: 0; border-radius: 6px; padding: 12px 18px; cursor: pointer;
+}
+button:hover { filter: brightness(1.08); }
+button:focus-visible, .pick:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
+button:disabled { opacity: .55; cursor: default; filter: none; }
+.ghost { background: transparent; color: var(--gold); box-shadow: inset 0 0 0 1.5px var(--gold); }
+
+/* totals */
+.totals { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.tile { background: var(--panel); border: 1px solid var(--rule); border-radius: 8px; padding: 14px 16px; display: grid; gap: 4px; }
+.tile b { font: 600 24px/1.1 var(--body); font-variant-numeric: tabular-nums; }
+.tile span { font: 12px/1.3 var(--mono); color: var(--muted); letter-spacing: .04em; }
+
+/* roster */
+.roster { display: grid; gap: 16px; }
+.roster .grp { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+.roster .who { font: 600 13px/1.2 var(--body); color: var(--muted); margin: 0 0 8px; }
+.pick {
+  text-align: left; background: var(--panel); color: var(--ink); border: 1px solid var(--rule); border-radius: 8px;
+  padding: 14px 16px; display: grid; gap: 6px; font: inherit; cursor: pointer; box-shadow: none;
+}
+.pick:hover { filter: none; border-color: var(--gold); }
+.pick[aria-pressed="true"] { border-color: var(--gold); box-shadow: inset 0 0 0 1px var(--gold), 0 0 0 3px var(--gold-soft); }
+.pick .row1 { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.pick .nm { font: 600 16px/1.2 var(--body); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pick .lv { margin-left: auto; font: 600 13px/1 var(--mono); color: var(--gold); white-space: nowrap; }
+.pick .sub { font-size: 12.5px; color: var(--muted); }
+.dot { width: 10px; height: 10px; border-radius: 50%; flex: none; box-shadow: 0 0 0 1px var(--rule); }
+
+/* detail grid */
+.detail { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.panel { background: var(--panel); border: 1px solid var(--rule); border-radius: 8px; padding: 16px 18px; min-width: 0; }
+.panel.wide { grid-column: 1 / -1; }
+@media (max-width: 720px) { .detail { grid-template-columns: minmax(0, 1fr); } }
+.kv { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 10px 16px; }
+.kv div { display: grid; gap: 2px; }
+.kv b { font: 600 17px/1.2 var(--body); font-variant-numeric: tabular-nums; }
+.kv span { font-size: 12px; color: var(--muted); }
+.empty { color: var(--faint); font-size: 13px; margin: 0; }
+
+/* horizontal bar lists */
+.bars { display: grid; gap: 7px; margin: 0; padding: 0; list-style: none; }
+.bars li { display: grid; grid-template-columns: minmax(70px, 34%) 1fr auto; align-items: center; gap: 10px; font-size: 13px; }
+.bars .lb { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bars .tr { height: 8px; background: var(--track); border-radius: 4px; overflow: hidden; }
+.bars .fl { height: 100%; background: var(--bar); border-radius: 0 4px 4px 0; min-width: 2px; }
+.bars .vl { font: 12.5px/1 var(--mono); color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* sessions column chart */
+.cols { position: relative; height: 150px; display: flex; align-items: flex-end; gap: 4px; padding-top: 18px; border-bottom: 1px solid var(--rule); }
+.cols .c { flex: 1 1 0; min-width: 6px; background: var(--bar); border-radius: 4px 4px 0 0; position: relative; }
+.cols .c:hover, .cols .c:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
+.cols .avg { position: absolute; left: 0; right: 0; border-top: 1px dashed var(--muted); pointer-events: none; }
+.cols .avg span { position: absolute; right: 0; top: -17px; font: 11px/1 var(--mono); color: var(--muted); background: var(--panel); padding: 0 3px; }
+.axis { display: flex; justify-content: space-between; font: 11px/1 var(--mono); color: var(--faint); margin-top: 6px; }
+
+/* loot */
+.qual { display: flex; flex-wrap: wrap; gap: 6px; font-size: 13px; margin-bottom: 12px; }
+.chip { display: inline-flex; align-items: center; gap: 6px; font: 500 12.5px/1 var(--body); color: var(--ink);
+        background: transparent; border: 1px solid var(--rule); border-radius: 999px; padding: 6px 10px; cursor: pointer; }
+.chip:hover { filter: none; border-color: var(--gold); }
+.chip[aria-pressed="true"] { border-color: var(--gold); background: var(--gold-soft); }
+.chip .ct { color: var(--muted); font-variant-numeric: tabular-nums; }
+.lootlist { max-height: 360px; overflow-y: auto; }
+.finds .qty { font: 12px/1 var(--mono); color: var(--muted); }
+.sw { width: 10px; height: 10px; border-radius: 2px; box-shadow: 0 0 0 1px var(--faint); flex: none; }
+.finds { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; font-size: 13px; }
+.finds li { display: grid; grid-template-columns: auto 1fr auto; gap: 2px 8px; align-items: center; }
+.finds .meta { grid-column: 2; font-size: 12px; color: var(--muted); }
+
+/* feed */
+.feed { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; font-size: 13px; max-height: 320px; overflow-y: auto; }
+.feed li { display: grid; grid-template-columns: 88px 1fr; gap: 10px; }
+.feed time { font: 11.5px/1.6 var(--mono); color: var(--faint); }
+
+/* duo */
+.duohead { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; margin-bottom: 4px; }
+.legend { display: flex; gap: 16px; font-size: 12.5px; color: var(--muted); margin-bottom: 10px; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.score { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.score li { display: grid; grid-template-columns: 110px 1fr; gap: 10px; align-items: center; font-size: 13px; }
+.score .pair { display: grid; gap: 3px; }
+.score .ln { display: grid; grid-template-columns: 1fr 70px; gap: 8px; align-items: center; }
+.score .tr { height: 7px; background: var(--track); border-radius: 4px; overflow: hidden; }
+.score .fl { height: 100%; border-radius: 0 4px 4px 0; min-width: 2px; }
+.score .vl { font: 12px/1 var(--mono); color: var(--muted); text-align: right; white-space: nowrap; }
+.lead { color: var(--ink); font-weight: 600; }
+
+/* tooltip */
+#tip { position: fixed; z-index: 20; pointer-events: none; background: var(--ink); color: var(--panel); font: 12px/1.4 var(--body);
+       padding: 6px 9px; border-radius: 6px; max-width: 260px; white-space: pre-line; }
+
+/* get-the-addon dialog */
+dialog { border: 1px solid var(--rule); border-radius: 10px; background: var(--panel); color: var(--ink); padding: 0;
+         width: min(560px, calc(100vw - 32px)); max-height: calc(100vh - 48px); }
+dialog::backdrop { background: rgba(20, 12, 4, .55); }
+.dlg { padding: 22px 22px 20px; display: grid; gap: 16px; }
+.dlg .head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.dlg ol { margin: 0; padding-left: 1.3em; display: grid; gap: 7px; }
+.dlg .path { display: block; margin-top: 4px; padding: 7px 9px; overflow-x: auto; white-space: nowrap; }
+.actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
+.status { font-size: 13px; color: var(--muted); min-height: 1.4em; }
+.status.ok { color: var(--ok); } .status.err { color: var(--err); }
+.close { background: transparent; color: var(--muted); padding: 6px 10px; font-size: 20px; line-height: 1; }
+details { border-top: 1px solid var(--rule); padding-top: 12px; }
+summary { cursor: pointer; font-weight: 600; }
+.cmds { display: grid; grid-template-columns: max-content 1fr; gap: 6px 14px; margin: 10px 0 0; font-size: 13px; }
+.cmds dt { font: 12.5px/1.6 var(--mono); color: var(--gold); }
+.cmds dd { margin: 0; min-width: 0; }
+@media (max-width: 440px) { .cmds { grid-template-columns: 1fr; } }
+@media (prefers-reduced-motion: no-preference) { .fl, .c { transition: width .3s ease, height .3s ease; } }
+
+/* download box in the header */
+.getbox { display: grid; gap: 6px; justify-items: start; }
+.getbox .actions { gap: 8px; }
+select { font: 500 14px/1 var(--body); color: var(--ink); background: var(--panel); border: 1px solid var(--rule);
+         border-radius: 6px; padding: 11px 12px; max-width: 100%; }
+select:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
+.notes { font-size: 12.5px; color: var(--muted); max-width: 46ch; margin: 0; }
+
+/* icons */
+.ico { width: 20px; height: 20px; border-radius: 4px; box-shadow: 0 0 0 1px var(--rule); flex: none; display: inline-block; object-fit: cover; }
+.ico.lg { width: 30px; height: 30px; border-radius: 6px; }
+.bars .lb { display: flex; align-items: center; gap: 7px; min-width: 0; }
+.bars .lb span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* professions */
+.profs { display: grid; gap: 14px; }
+.prof { border-top: 1px solid var(--rule); padding-top: 14px; display: grid; gap: 12px; }
+.prof:first-child { border-top: 0; padding-top: 0; }
+.prof .ph { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; align-items: center; }
+.prof .ph b { font: 600 16px/1.2 var(--body); }
+.prof .rk { grid-column: 2; display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; font: 12px/1 var(--mono); color: var(--muted); }
+.prof .rk .tr { height: 6px; background: var(--track); border-radius: 3px; overflow: hidden; }
+.prof .rk .fl { display: block; height: 100%; background: var(--bar); }
+.pcols { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px 18px; }
+.pcol h4 { margin: 0 0 8px; font: 600 12.5px/1.2 var(--body); color: var(--muted); }
+.recipes { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; max-height: 260px; overflow-y: auto; font-size: 13px; }
+.recipes li { display: grid; grid-template-columns: auto auto 1fr auto; gap: 7px; align-items: center; padding: 2px 4px 2px 0; border-radius: 4px; }
+.recipes li:hover { background: var(--track); }
+.recipes .rn { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.recipes .rm { font: 11.5px/1 var(--mono); color: var(--muted); white-space: nowrap; }
+.diff { width: 8px; height: 8px; border-radius: 50%; box-shadow: 0 0 0 1px var(--faint); }
+.reag { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px 16px; font-size: 13px; }
+.reag li { display: grid; grid-template-columns: auto 1fr auto; gap: 8px; align-items: center; min-width: 0; }
+.reag .rn { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.reag .rm { font: 12px/1 var(--mono); color: var(--muted); white-space: nowrap; }
+</style>
+
+<main>
+  <header class="top">
+    <div class="titles">
+      <span class="eyebrow">WoW: Forever · CAMWOW realm</span>
+      <h1>FC WoW Addons</h1>
+      <span class="snap" id="snap">Loading stats…</span>
+    </div>
+    <div class="getbox">
+      <label class="eyebrow" for="addon-pick">Download an addon</label>
+      <div class="actions">
+        <select id="addon-pick"><option>Loading…</option></select>
+        <button id="dl" type="button">Download</button>
+        <button id="open-dl" class="ghost" type="button">Install help</button>
+      </div>
+      <p class="notes" id="addon-notes"></p>
+      <span id="status" class="status" role="status"></span>
+    </div>
+  </header>
+
+  <section class="totals" id="totals" aria-label="Account totals"></section>
+
+  <section>
+    <h3>Characters</h3>
+    <div class="roster" id="roster" role="group" aria-label="Pick a character"></div>
+  </section>
+
+  <section class="detail" id="detail" aria-live="polite"></section>
+
+  <section class="detail" id="duo"></section>
+</main>
+
+<div id="tip" hidden></div>
+
+<dialog id="dl-dialog" aria-labelledby="dl-title">
+  <div class="dlg">
+    <div class="head">
+      <div>
+        <span class="eyebrow">Install help</span>
+        <h2 id="dl-title">Installing an addon</h2>
+      </div>
+      <button class="close" type="button" id="close-dl" aria-label="Close">×</button>
+    </div>
+    <ol>
+      <li>Close World of Warcraft.</li>
+      <li>Open your AddOns folder, for example
+        <code class="path">World of Warcraft\_forever_\Interface\AddOns</code></li>
+      <li>Unzip the download there, so you get <code>AddOns\ForeverMetrics\ForeverMetrics.toc</code> (or <code>AddOns\ForeverBuffs\…</code>). Replace an older folder of the same name if there is one; saved data is kept.</li>
+      <li>Start the game. <code>/fm</code> opens Forever Metrics (its window title shows the version); <code>/fb</code> controls Forever Buffs.</li>
+    </ol>
+    <details>
+      <summary>Duo mode and handy commands</summary>
+      <dl class="cmds">
+        <dt>/fm duo</dt><dd>See your partner and whether they're online</dd>
+        <dt>/fm duo add Name</dt><dd>Send a pairing request if the popup didn't show</dd>
+        <dt>/fm levelup check</dt><dd>What skill data the level-up pop-up can see</dd>
+        <dt>/fm debug</dt><dd>Show errors in chat if something isn't working</dd>
+      </dl>
+    </details>
+    <details>
+      <summary>Update these stats</summary>
+      <p class="muted" style="margin:10px 0 0">Log out (or <code>/reload</code>), then send Claude
+        <code class="path">WTF\Account\&lt;ACCOUNT&gt;\SavedVariables\ForeverMetrics.lua</code>
+        from your WoW folder. Each player has their own file.</p>
+    </details>
+  </div>
+</dialog>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script>
+(function () {
+  // ---------- helpers ----------
+  var CLASS_COLOR = { WARRIOR: "#c69b6d", MAGE: "#3fc7eb", ROGUE: "#fff468", SHAMAN: "#0070dd", DRUID: "#ff7c0a",
+    PRIEST: "#ffffff", PALADIN: "#f48cba", HUNTER: "#aad372", WARLOCK: "#8788ee" };
+  var QUAL = [ { n: "Poor", c: "#9d9d9d" }, { n: "Common", c: "#ffffff" }, { n: "Uncommon", c: "#1eff00" },
+    { n: "Rare", c: "#0070dd" }, { n: "Epic", c: "#a335ee" }, { n: "Legendary", c: "#ff8000" } ];
+  function el(tag, attrs, kids) {
+    var e = document.createElement(tag);
+    for (var k in attrs || {}) {
+      if (k === "text") e.textContent = attrs[k];
+      else if (k === "style") e.setAttribute("style", attrs[k]);
+      else e.setAttribute(k, attrs[k]);
+    }
+    (kids || []).forEach(function (c) { if (c) e.appendChild(typeof c === "string" ? document.createTextNode(c) : c); });
+    return e;
+  }
+  function cap(s) { return s ? s.charAt(0) + s.slice(1).toLowerCase() : ""; }
+  function n(x) { return (x || 0).toLocaleString("en-US"); }
+  function dur(sec) {
+    sec = Math.max(0, Math.round(sec || 0));
+    var h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60);
+    return h ? h + "h " + m + "m" : m + "m";
+  }
+  function gold(c) {
+    c = Math.round(c || 0);
+    var g = Math.floor(c / 10000), s = Math.floor(c / 100) % 100, cp = c % 100;
+    return g ? g + "g " + s + "s" : (s ? s + "s " + cp + "c" : cp + "c");
+  }
+  function day(t) { return t ? new Date(t * 1000).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : ""; }
+  function when(t) { return t ? new Date(t * 1000).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : ""; }
+  function store(k, v) { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch (e) { return null; } }
+
+  // ---------- tooltip ----------
+  var tip = document.getElementById("tip");
+  function showTip(e, text) {
+    tip.textContent = text; tip.hidden = false;
+    var x = e.clientX + 14, y = e.clientY + 14, r = tip.getBoundingClientRect();
+    if (x + r.width > innerWidth - 8) x = e.clientX - r.width - 14;
+    if (y + r.height > innerHeight - 8) y = e.clientY - r.height - 14;
+    tip.style.left = x + "px"; tip.style.top = y + "px";
+  }
+  document.addEventListener("pointermove", function (e) {
+    var t = e.target.closest && e.target.closest("[data-tip]");
+    if (t) showTip(e, t.getAttribute("data-tip")); else tip.hidden = true;
+  });
+  document.addEventListener("focusin", function (e) {
+    var t = e.target.closest && e.target.closest("[data-tip]");
+    if (!t) { tip.hidden = true; return; }
+    var r = t.getBoundingClientRect();
+    showTip({ clientX: r.left + r.width / 2, clientY: r.top }, t.getAttribute("data-tip"));
+  });
+
+  // ---------- building blocks ----------
+  function panel(title, wide, body) {
+    return el("div", { "class": "panel" + (wide ? " wide" : "") }, [el("h3", { text: title })].concat(body));
+  }
+  function empty(text) { return el("p", { "class": "empty", text: text }); }
+  // an icon by key ("spell:133", "item:2589", "class:MAGE", "prof:Mining", "name:Copper Ore")
+  function ico(key, cls, extraStyle) {
+    var name = DATA && DATA.icons && DATA.icons[key];
+    if (!name) return null;
+    var src = DATA.iconData && DATA.iconData[name];
+    if (!src) return null;
+    return el("img", { "class": "ico" + (cls ? " " + cls : ""), src: src, alt: "",
+      style: extraStyle || "" });
+  }
+  function firstIco(keys, cls) {
+    for (var i = 0; i < keys.length; i++) { var x = keys[i] && ico(keys[i], cls); if (x) return x; }
+    return null;
+  }
+  function barList(rows, fmt, tipFn, fixedMax) {
+    if (!rows.length) return null;
+    var max = fixedMax || Math.max.apply(null, rows.map(function (r) { return r.value; })) || 1;
+    return el("ul", { "class": "bars" }, rows.map(function (r) {
+      return el("li", { "data-tip": tipFn ? tipFn(r) : r.name + ": " + fmt(r.value) }, [
+        el("span", { "class": "lb" }, [r.icon ? ico(r.icon) : null, el("span", { text: r.name })]),
+        el("span", { "class": "tr" }, [el("span", { "class": "fl", style: "display:block;width:" + (100 * r.value / max) + "%" })]),
+        el("span", { "class": "vl", text: fmt(r.value) })
+      ]);
+    }));
+  }
+
+  // ---------- data ----------
+  var DATA = null, sel = null;
+
+  function renderTotals() {
+    var t = { played: 0, kills: 0, quests: 0, deaths: 0, earned: 0, levels: 0 };
+    DATA.chars.forEach(function (c) {
+      t.played += c.played; t.kills += c.stats.kills; t.quests += c.stats.quests;
+      t.deaths += c.stats.deaths; t.earned += c.stats.goldEarned; t.levels += c.stats.levels;
+    });
+    var box = document.getElementById("totals");
+    box.textContent = "";
+    [[dur(t.played), "time tracked"], [n(t.kills), "kills"], [n(t.quests), "quests"],
+     [n(t.levels), "levels gained"], [gold(t.earned), "gold earned"], [n(t.deaths), t.deaths === 1 ? "death" : "deaths"]]
+      .forEach(function (x) { box.appendChild(el("div", { "class": "tile" }, [el("b", { text: x[0] }), el("span", { text: x[1] })])); });
+  }
+
+  function renderRoster() {
+    var box = document.getElementById("roster");
+    box.textContent = "";
+    var owners = DATA.owners && DATA.owners.length ? DATA.owners : [null];
+    var groups = {};
+    owners.forEach(function (o) {
+      var wrap = el("div");
+      if (owners.length > 1) wrap.appendChild(el("p", { "class": "who", text: o + "'s characters" }));
+      groups[o] = el("div", { "class": "grp" });
+      wrap.appendChild(groups[o]);
+      box.appendChild(wrap);
+    });
+    DATA.chars.forEach(function (c) {
+      var b = el("button", { "class": "pick", type: "button", "aria-pressed": String(c.key === sel) }, [
+        el("span", { "class": "row1" }, [
+          ico("class:" + c["class"]) || el("span", { "class": "dot", style: "background:" + (CLASS_COLOR[c["class"]] || "var(--faint)") }),
+          el("span", { "class": "nm", text: c.name }),
+          el("span", { "class": "lv", text: "Lv " + c.level })
+        ]),
+        el("span", { "class": "sub", text: cap(c["class"]) + " · " + dur(c.played) + " tracked" })
+      ]);
+      b.addEventListener("click", function () { sel = c.key; store("fm-char", sel); renderRoster(); renderDetail(); });
+      (groups[c.owner] || groups[owners[0]]).appendChild(b);
+    });
+  }
+
+  function renderDetail() {
+    var c = DATA.chars.filter(function (x) { return x.key === sel; })[0];
+    var box = document.getElementById("detail");
+    box.textContent = "";
+    if (!c) return;
+
+    // overview
+    var s = c.stats;
+    box.appendChild(panel(c.name + " · level " + c.level + " " + cap(c["class"]), true, [el("div", { "class": "kv" }, [
+      ["XP per hour", c.xpPerHour ? n(c.xpPerHour) : "—"], ["Kills", n(s.kills)], ["Quests", n(s.quests)],
+      ["Deaths", n(s.deaths)], ["Gold earned", gold(s.goldEarned)], ["Gold spent", gold(s.goldSpent)],
+      ["Looted from mobs", gold(s.goldLooted)], ["Last played", day(c.lastSeen)]
+    ].map(function (x) { return el("div", null, [el("b", { text: x[1] }), el("span", { text: x[0] })]); }))]));
+
+    renderProfessions(box, c);
+
+    // time per level
+    var lv = Object.keys(c.levelTimes).map(Number).sort(function (a, b) { return a - b; })
+      .map(function (k) { return { name: "Level " + (k - 1) + " → " + k, value: c.levelTimes[k] }; })
+      .filter(function (r) { return r.value > 0; });
+    box.appendChild(panel("Time per level", false, [barList(lv, dur) || empty("Shows up as this character levels with the addon running.")]));
+
+    // where the time went
+    box.appendChild(panel("Where the time went", false, [barList(c.zones, dur) || empty("No zones yet.")]));
+
+    // sessions
+    var ses = c.sessions.filter(function (x) { return x.dur >= 600; });
+    var sesBody;
+    if (ses.length < 2) {
+      sesBody = [empty("Needs a couple of play sessions of 10 minutes or more.")];
+    } else {
+      var rates = ses.map(function (x) { return x.xp / (x.dur / 3600); });
+      var max = Math.max.apply(null, rates) || 1;
+      var avg = c.xpPerHour || 0;
+      var cols = el("div", { "class": "cols", role: "img", "aria-label": "XP per hour for each of " + ses.length + " sessions" },
+        ses.map(function (x, i) {
+          return el("div", { "class": "c", tabindex: "0", style: "height:" + Math.max(1, 100 * rates[i] / max) + "%",
+            "data-tip": when(x.start) + " · " + dur(x.dur) + "\n" + n(Math.round(rates[i])) + " XP/hr · " + n(x.kills) + " kills · " + n(x.quests) + " quests" });
+        }));
+      if (avg) {
+        cols.appendChild(el("div", { "class": "avg", style: "bottom:" + (100 * avg / max) + "%" }, [el("span", { text: "avg " + n(avg) })]));
+      }
+      sesBody = [cols, el("div", { "class": "axis" }, [el("span", { text: day(ses[0].start) }), el("span", { text: day(ses[ses.length - 1].start) })])];
+    }
+    box.appendChild(panel("XP per hour, by session", false, sesBody));
+
+    // loot, filterable by quality
+    box.appendChild(renderLoot(c));
+
+    // most hunted
+    box.appendChild(panel("Most hunted", false, [barList(c.kills, n, function (r) { return r.name + ": " + n(r.value) + " kills"; }) || empty("No kills yet.")]));
+
+    // professions & skills
+    var skills = c.skills.slice(0, 8).map(function (x) { return { name: x.name, value: x.rank, icon: "prof:" + x.name }; });
+    box.appendChild(panel("Skills", false, [barList(skills, function (v) { return v + " / 300"; }, function (r) { return r.name + " " + r.value + " of 300"; }, 300) || empty("Skills show up after their first skill-up.")]));
+
+    // gathering
+    var g = Object.keys(c.gathering);
+    box.appendChild(panel("Gathering", false, g.length ? g.map(function (k) {
+      var G = c.gathering[k];
+      return el("div", { style: "margin-bottom:12px" }, [
+        el("p", { style: "margin:0 0 8px;font-weight:600", text: k + " · " + n(G.nodes) + (k === "Fishing" ? " catches" : " nodes") }),
+        barList(G.items.map(function (it) { return { name: it.name, value: it.value, icon: "name:" + it.name }; }), n)
+      ]);
+    }) : [empty("No gathering yet.")]));
+
+    // recent activity
+    var feed = c.feed.slice().reverse();
+    box.appendChild(panel("Recent activity", true, [feed.length ? el("ul", { "class": "feed" }, feed.map(function (e) {
+      return el("li", null, [el("time", { text: when(e.t) }), el("span", { text: e.x })]);
+    })) : empty("Nothing yet.")]));
+  }
+
+  // ---------- loot ----------
+  var lootFilter = store("fm-loot") || "all";
+  function renderLoot(c) {
+    var q = c.loot.q, items = c.loot.items || [], finds = c.loot.notable.slice().reverse();
+    var wrap = el("div", { "class": "panel" }, [el("h3", { text: "Loot" })]);
+    var chips = el("div", { "class": "qual", role: "group", "aria-label": "Filter loot by quality" });
+    var listBox = el("div", { "class": "lootlist" });
+    var total = 0;
+    QUAL.forEach(function (Q, i) { total += q[i] || 0; });
+    if (!total) { wrap.appendChild(empty("No loot tracked yet.")); return wrap; }
+
+    function chip(key, label, count, color) {
+      var b = el("button", { "class": "chip", type: "button", "aria-pressed": String(lootFilter === key) }, [
+        color ? el("span", { "class": "sw", style: "background:" + color }) : null,
+        label, el("span", { "class": "ct", text: n(count) })
+      ]);
+      b.addEventListener("click", function () {
+        lootFilter = key; store("fm-loot", key);
+        Array.prototype.forEach.call(chips.children, function (x) { x.setAttribute("aria-pressed", String(x === b)); });
+        fill();
+      });
+      chips.appendChild(b);
+    }
+    // a saved filter this character has nothing in falls back to All
+    if (lootFilter !== "all" && !q[Number(lootFilter)]) lootFilter = "all";
+    chip("all", "All", total);
+    QUAL.forEach(function (Q, i) { if (q[i]) chip(String(i), Q.n, q[i], Q.c); });
+
+    function row(item, meta, qty) {
+      var Q = QUAL[item.q] || QUAL[1];
+      var icon = firstIco(["item:" + item.id, "name:" + item.name], null);
+      if (icon) icon.style.boxShadow = "0 0 0 1.5px " + Q.c;
+      return el("li", null, [icon || el("span", { "class": "sw", style: "background:" + Q.c }),
+        el("span", { text: item.name }), el("span", { "class": "qty", text: qty || "" }),
+        meta ? el("span", { "class": "meta", text: meta }) : null]);
+    }
+    function fill() {
+      listBox.textContent = "";
+      var want = lootFilter === "all" ? null : Number(lootFilter);
+      var parts = [];
+      // every item looted, counted (from ForeverMetrics 0.16.1)
+      var tallies = items.filter(function (x) { return want === null || x.q === want; });
+      // green-or-better finds with where they dropped
+      var fs = finds.filter(function (f) { return want === null || f.q === want; });
+      if (fs.length && (want === null || want >= 2)) {
+        parts.push(el("h4", { style: "margin:4px 0 8px;font:600 12.5px/1.2 var(--body);color:var(--muted)", text: "Recent finds" }));
+        parts.push(el("ul", { "class": "finds" }, fs.map(function (f) {
+          return row(f, [f.mob, f.zone, f.kill ? "kill #" + n(f.kill) : "", day(f.t)].filter(Boolean).join(" · "));
+        })));
+      }
+      if (tallies.length) {
+        parts.push(el("h4", { style: "margin:14px 0 8px;font:600 12.5px/1.2 var(--body);color:var(--muted)", text: "Everything looted" }));
+        parts.push(el("ul", { "class": "finds" }, tallies.slice(0, 60).map(function (x) { return row(x, null, "×" + n(x.c)); })));
+      } else if (want !== null && want < 2) {
+        parts.push(empty("Poor and common items are only counted so far. From ForeverMetrics 0.16.1 each item is listed by name here."));
+      }
+      if (!parts.length) parts.push(empty("Nothing in this category yet."));
+      parts.forEach(function (x) { listBox.appendChild(x); });
+    }
+    fill();
+    wrap.appendChild(chips);
+    wrap.appendChild(listBox);
+    if (c.loot.cloth.length) wrap.appendChild(el("p", { "class": "muted", style: "margin:12px 0 0;font-size:13px",
+      text: "Cloth: " + c.loot.cloth.map(function (x) { return x.name.replace(" Cloth", "") + " " + n(x.value); }).join(" · ") }));
+    return wrap;
+  }
+
+  // ---------- professions ----------
+  var DIFF = { optimal: ["#ff8040", "Orange: always a skill-up"], medium: ["#ffff00", "Yellow: usually a skill-up"],
+    easy: ["#40bf40", "Green: sometimes a skill-up"], trivial: ["#808080", "Grey: no more skill-ups"] };
+  function recipeTip(r) {
+    var lines = [r.n];
+    if (r.diff && DIFF[r.diff]) lines.push(DIFF[r.diff][1]);
+    (r.reagents || []).forEach(function (g) { lines.push(g.c + "× " + (g.n || "?") + "  (have " + n(g.have) + ")"); });
+    if (r.canMake) lines.push("You can make " + n(r.canMake) + " now");
+    return lines.join("\n");
+  }
+  function recipeRow(r, meta, dim) {
+    var d = DIFF[r.diff];
+    return el("li", { "data-tip": r.tip || recipeTip(r), style: dim ? "opacity:.8" : "" }, [
+      d ? el("span", { "class": "diff", style: "background:" + d[0] }) : el("span"),
+      firstIco(["spell:" + r.spell, "item:" + r.item, "name:" + r.n]) || el("span", { "class": "ico" }),
+      el("span", { "class": "rn", text: r.n + (r.r ? " (" + r.r + ")" : "") }),
+      el("span", { "class": "rm", text: meta || "" })
+    ]);
+  }
+  function col(title, rows, emptyText) {
+    return el("div", { "class": "pcol" }, [el("h4", { text: title }),
+      rows.length ? el("ul", { "class": "recipes" }, rows) : empty(emptyText)]);
+  }
+  function renderProfessions(box, c) {
+    var profs = c.profs || [];
+    var body;
+    if (!profs.length) {
+      body = [empty("No professions yet.")];
+    } else {
+      body = [el("div", { "class": "profs" }, profs.map(function (P) {
+        var max = P.max || 300;
+        var head = el("div", { "class": "ph" }, [
+          ico("prof:" + P.name, "lg") || el("span"),
+          el("b", { text: P.name }),
+          el("div", { "class": "rk" }, [el("span", { "class": "tr" }, [el("span", { "class": "fl", style: "width:" + Math.min(100, 100 * P.rank / max) + "%" })]),
+            el("span", { text: P.rank + " / " + max })])
+        ]);
+        var gathering = ["Mining", "Herbalism", "Skinning", "Fishing"].indexOf(P.name) >= 0;
+        if (!P.recipes.length && !P.trainerKnown) {
+          return el("div", { "class": "prof" }, [head, empty(gathering && P.name !== "Mining"
+            ? "A gathering skill: see Gathering below for what you've collected."
+            : "To fill this in: open your " + P.name + " window in game (ForeverMetrics 0.16 or newer), and visit a " + P.name + " trainer once.")]);
+        }
+        var cols = [];
+        if (P.recipes.length) {
+          var make = P.recipes.filter(function (r) { return r.canMake > 0; });
+          cols.push(col("Can craft now (" + make.length + ")",
+            make.map(function (r) { return recipeRow(r, "×" + n(r.canMake)); }),
+            c.bagsSeen ? "Nothing — you're missing reagents for every recipe." : "Shows up once the addon has seen your bags."));
+          cols.push(col("Known recipes (" + P.recipes.length + ")", P.recipes.map(function (r) { return recipeRow(r, ""); }), ""));
+        } else {
+          cols.push(col("Known recipes", [], "Open your " + P.name + " window once in game (ForeverMetrics 0.16 or newer) to list your recipes and what you can craft."));
+        }
+        if (P.trainerKnown) {
+          cols.push(col("Learn now (" + P.missing.length + ")", P.missing.map(function (r) {
+            r.tip = r.n + (r.r ? " (" + r.r + ")" : "") + "\nNeeds " + P.name + " " + r.skill + (r.lv ? ", level " + r.lv : "") + "\nCosts " + gold(r.cost);
+            return recipeRow(r, gold(r.cost));
+          }), "You know everything your trainer teaches at this skill."));
+          cols.push(col("Coming up", P.upcoming.map(function (r) {
+            r.tip = r.n + (r.r ? " (" + r.r + ")" : "") + "\nUnlocks at " + P.name + " " + r.skill + (r.lv ? ", level " + r.lv : "") + "\nCosts " + gold(r.cost);
+            return recipeRow(r, "at " + r.skill, true);
+          }), "Nothing more at this trainer."));
+        } else if (!gathering) {
+          cols.push(col("Missing and coming up", [], "Visit a " + P.name + " trainer once to list recipes you can learn now and the ones coming up."));
+        }
+        return el("div", { "class": "prof" }, [head, el("div", { "class": "pcols" }, cols)]);
+      }))];
+    }
+    box.appendChild(panel("Professions", true, body));
+
+    // reagents on the character
+    var reag = c.reagents || [];
+    box.appendChild(panel("Reagents and materials", true, [reag.length ? el("ul", { "class": "reag" }, reag.map(function (e) {
+      var where = [e.bags ? n(e.bags) + " bags" : "", e.bank ? n(e.bank) + " bank" : ""].filter(Boolean).join(" · ");
+      return el("li", { "data-tip": (e.n || "Item " + e.id) + "\n" + where }, [
+        firstIco(["item:" + e.id, "name:" + e.n]) || el("span", { "class": "ico" }),
+        el("span", { "class": "rn", text: e.n || "Item " + e.id }),
+        el("span", { "class": "rm", text: "×" + n(e.bags + e.bank) })
+      ]);
+    })) : empty(c.bagsSeen ? "No crafting materials in your bags." :
+      "Shows up once ForeverMetrics 0.16 or newer has seen your bags. Open your bank once to include it.")]));
+  }
+
+  function renderDuo() {
+    var box = document.getElementById("duo");
+    box.textContent = "";
+    if (!DATA.duo || !DATA.duo.length) return;
+    // account totals in the same shape duo mode shares, for one player's characters
+    function totals(owner) {
+      var t = { p: 0, k: 0, q: 0, d: 0, lv: 0, gl: 0, g: 0, b: 0, nd: 0 };
+      DATA.chars.forEach(function (c) {
+        if (owner && c.owner !== owner) return;
+        t.p += c.played; t.k += c.stats.kills; t.q += c.stats.quests; t.d += c.stats.deaths;
+        t.lv += c.stats.levels; t.gl += c.stats.goldLooted;
+        t.g += c.loot.q[2] || 0; t.b += c.loot.q[3] || 0;
+        Object.keys(c.gathering).forEach(function (k) { t.nd += c.gathering[k].nodes; });
+      });
+      return t;
+    }
+    var owners = DATA.owners || [];
+    DATA.duo.forEach(function (P) {
+      var me = P.owner || owners[0];
+      var other = owners.filter(function (o) { return o !== me; })[0];
+      var mine = totals(owners.length > 1 ? me : null);
+      // with the partner's own file, use their real totals; otherwise what duo mode shared
+      var T = P.together || {}, A = other ? totals(other) : (P.acct || {});
+      var nick = other || P.nick || "Partner";
+      var meName = owners.length > 1 ? me : "You";
+      var head = el("div", { "class": "panel wide" }, [
+        el("div", { "class": "duohead" }, [el("h2", { text: other ? "Duo: " + me + " & " + other : "Duo with " + nick }), el("span", { "class": "muted", text: "paired since " + day(P.added) })]),
+        el("p", { "class": "muted", style: "margin:0 0 14px;display:flex;flex-wrap:wrap;gap:6px 16px;align-items:center" },
+          [el("span", { text: (other ? other + "'s" : "Their") + " characters:" })].concat(P.chars.map(function (c) {
+            return el("span", { style: "display:inline-flex;gap:6px;align-items:center" }, [ico("class:" + c["class"]), c.name + " (" + cap(c["class"]) + " " + c.level + ")"]);
+          }))),
+        el("div", { "class": "kv" }, [["Time together", dur(T.time)], ["Kills together", n(T.kills)], ["Quests together", n(T.quests)], ["Levels together", n(T.levels)]]
+          .map(function (x) { return el("div", null, [el("b", { text: x[1] }), el("span", { text: x[0] })]); }))
+      ]);
+      box.appendChild(head);
+
+      var ROWS = [["Time played", "p", dur], ["Kills", "k", n], ["Quests", "q", n], ["Levels gained", "lv", n],
+        ["Greens", "g", n], ["Blues", "b", n], ["Nodes gathered", "nd", n], ["Gold looted", "gl", gold], ["Deaths", "d", n, true]];
+      var score = el("ul", { "class": "score" }, ROWS.map(function (R) {
+        var a = mine[R[1]] || 0, b = Number(A[R[1]]) || 0, max = Math.max(a, b) || 1, fmt = R[2];
+        var aLead = R[3] ? a < b : a > b, bLead = R[3] ? b < a : b > a;
+        function line(v, color, lead, who) {
+          return el("div", { "class": "ln", "data-tip": who + " · " + R[0] + ": " + fmt(v) }, [
+            el("span", { "class": "tr" }, [el("span", { "class": "fl", style: "display:block;background:" + color + ";width:" + (100 * v / max) + "%" })]),
+            el("span", { "class": "vl" + (lead ? " lead" : ""), text: fmt(v) })
+          ]);
+        }
+        return el("li", null, [el("span", { text: R[0] + (R[3] ? " (fewer wins)" : "") }),
+          el("div", { "class": "pair" }, [line(a, "var(--you)", aLead, meName), line(b, "var(--her)", bLead, nick)])]);
+      }));
+      box.appendChild(panel("Head to head, all characters", false, [
+        el("div", { "class": "legend" }, [
+          el("span", null, [el("span", { "class": "sw", style: "background:var(--you);box-shadow:none" }), meName]),
+          el("span", null, [el("span", { "class": "sw", style: "background:var(--her);box-shadow:none" }), nick])
+        ]), score]));
+
+      var feed = (P.feed || []).slice().reverse();
+      box.appendChild(panel(nick + "'s highlights", false, [feed.length ? el("ul", { "class": "feed" }, feed.map(function (e) {
+        return el("li", null, [el("time", { text: when(e.t) }), el("span", { text: (e.who ? e.who + ": " : "") + e.x })]);
+      })) : empty("Level-ups, rare finds and deaths show up here.")]));
+    });
+  }
+
+  fetch("stats.json").then(function (r) { if (!r.ok) throw 0; return r.json(); }).then(function (d) {
+    DATA = d;
+    document.getElementById("snap").textContent = "Snapshot from " + when(d.snapshot) + " · " + d.chars.length + " characters" +
+      (d.owners && d.owners.length > 1 ? " · " + d.owners.join(" & ") : "");
+    var saved = store("fm-char");
+    sel = d.chars.some(function (c) { return c.key === saved; }) ? saved : (d.chars[0] && d.chars[0].key);
+    renderTotals(); renderRoster(); renderDetail(); renderDuo();
+  }).catch(function () {
+    document.getElementById("snap").textContent = "No stats yet. Send Claude your ForeverMetrics.lua saved-variables file to fill this page.";
+  });
+
+  // ---------- get the addon ----------
+  var dlg = document.getElementById("dl-dialog");
+  document.getElementById("open-dl").addEventListener("click", function () {
+    if (dlg.showModal) dlg.showModal(); else dlg.setAttribute("open", "");
+  });
+  document.getElementById("close-dl").addEventListener("click", function () { dlg.close ? dlg.close() : dlg.removeAttribute("open"); });
+  dlg.addEventListener("click", function (e) { if (e.target === dlg && dlg.close) dlg.close(); });
+
+  var downloadsP = (window.claude && window.claude.use) ? window.claude.use("downloads") : Promise.resolve(null);
+  var pick = document.getElementById("addon-pick"), notes = document.getElementById("addon-notes");
+  var ADDONS = [];
+  var pkgP = fetch("addons.json").then(function (r) { if (!r.ok) throw { code: "fetch" }; return r.json(); });
+  function showNotes() {
+    var a = ADDONS[pick.selectedIndex];
+    notes.textContent = a ? a.notes.replace(/\|c\w{8}|\|r/g, "") : "";
+    store("fm-addon", a ? a.folder : "");
+  }
+  pkgP.then(function (pkg) {
+    ADDONS = pkg.addons || [];
+    pick.textContent = "";
+    var want = store("fm-addon");
+    ADDONS.forEach(function (a, i) {
+      var o = el("option", { value: a.folder, text: a.title.replace(/\|c\w{8}|\|r/g, "") + " v" + a.version });
+      if (a.folder === want) o.selected = true;
+      pick.appendChild(o);
+    });
+    showNotes();
+  }).catch(function () { pick.textContent = ""; pick.appendChild(el("option", { text: "Couldn't load the addon list" })); });
+  pick.addEventListener("change", showNotes);
+
+  var btn = document.getElementById("dl"), status = document.getElementById("status");
+  function say(text, cls) { status.textContent = text; status.className = "status " + (cls || ""); }
+  btn.addEventListener("click", function () {
+    var a = ADDONS[pick.selectedIndex];
+    if (!a) { say("The addon list hasn't loaded yet.", "err"); return; }
+    btn.disabled = true;
+    say("Preparing " + a.folder + "…");
+    var name = a.folder + "-" + a.version + ".zip";
+    Promise.all([downloadsP, Promise.resolve().then(function () {
+      if (!window.JSZip) throw { code: "fetch" };
+      var zip = new JSZip(), dir = zip.folder(a.folder);
+      Object.keys(a.files).forEach(function (f) { dir.file(f, a.files[f]); });
+      return zip.generateAsync({ type: "blob", compression: "DEFLATE" });
+    })]).then(function (res) {
+      if (!res[0]) throw { code: "unavailable" };
+      say("Confirm the download in the prompt.");
+      return res[0].save({ filename: name, data: res[1] });
+    }).then(function () {
+      say("Downloaded " + name + ". Unzip it into your AddOns folder.", "ok");
+    }).catch(function (e) {
+      var code = e && e.code;
+      if (code === "declined") say("Download cancelled. Click Download to try again.");
+      else if (code === "rate_limited") say("A download prompt is already open. Finish that one first.");
+      else if (code === "fetch") say("The file couldn't be loaded. Reload the page and try again.", "err");
+      else say("Downloads aren't available in this view. Open this page in claude.ai in a browser.", "err");
+    }).then(function () { btn.disabled = false; });
+  });
+})();
+</script>

@@ -388,6 +388,7 @@ local NOTES = {
   duo     = "Pairing is automatic when you share a guild or group. /fm duo lists partners and commands.",
   fct     = "Gains rise above your character. Move them in Edit Mode, or /fm fct move. /fm fct test shows samples.",
   fctBlizz = "These are WoW's own combat text settings, saved by the game. Options this client doesn't have are hidden. They can't be changed in combat.",
+  unitframes = "These are WoW's own unit frame settings, saved by the game. Options this client doesn't have are hidden. They can't be changed in combat. If the text doesn't update right away, type /reload.",
   tooltip = "Uses base ratios before talents and buffs. Conditional AP (vs Undead, feral forms) is skipped.",
   chat    = "The background option uses WoW's own chat opacity setting, so turning it off restores what you had. Hidden buttons stay hidden even when chat fades in on hover; the tabs always stay.",
   qol     = "All off by default. Faster auto loot follows your Auto Loot game setting.",
@@ -417,6 +418,7 @@ local function buildSections()
     { key = "combattext", label = "Combat Text", tabs = {
         { label = "Floating gains", kind = "options", group = "fct" },
         { label = "Blizzard", kind = "options", group = "fctBlizz" } } },
+    { key = "unitframes", label = "Unit Frames", tabs = { { kind = "options", group = "unitframes" } } },
     { key = "tooltips", label = "Tooltips", tabs = { { kind = "options", group = "tooltip" } } },
     { key = "chat", label = "Chat", tabs = { { kind = "options", group = "chat" } } },
     { key = "qol", label = "Quality of Life", tabs = { { kind = "options", group = "qol" } } },
@@ -777,7 +779,7 @@ local function refresh()
   end
   if ui.focus == "nav" and win.usesPad then nav.focusEdge:Show() else nav.focusEdge:Hide() end
 
-  titleText:SetText("|cffe8c27aForever Metrics|r  |cffa8977a·  " .. s.label .. "|r")
+  titleText:SetText("|cffe8c27aForever Metrics|r |cff8a7a64v" .. (FM.VERSION or "?") .. "|r  |cffa8977a·  " .. s.label .. "|r")
   layoutTabs(s)
   placeBodies(#s.tabs > 1 and -32 or 0)
 

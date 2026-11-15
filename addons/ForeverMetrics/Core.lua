@@ -8,6 +8,12 @@ local FM = {}
 ns.FM = FM
 _G.ForeverMetrics = FM
 
+-- Version from the .toc, shown in the /fm window title and the login line
+do
+  local getMeta = (C_AddOns and C_AddOns.GetAddOnMetadata) or GetAddOnMetadata
+  FM.VERSION = getMeta and getMeta(ADDON, "Version") or "?"
+end
+
 local FEED_MAX = 300      -- activity entries kept per character
 local SESSIONS_MAX = 20   -- session summaries kept per character
 local TICK = 10           -- seconds between time-played/zone ticks
@@ -87,6 +93,7 @@ local function ensureLoot(c)
   L.mobs = L.mobs or {}       -- mob -> { kills, greens, blues, purples }
   L.zones = L.zones or {}     -- zone -> { kills, greens, blues, purples }
   L.notable = L.notable or {} -- green+ finds, oldest first
+  L.items = L.items or {}     -- every item looted from corpses: id (or name) -> { n, q, id, c }
   L.lastGreenKill = L.lastGreenKill or c.stats.kills
   L.lastBlueKill = L.lastBlueKill or c.stats.kills
   L.longestDry = L.longestDry or 0
@@ -169,6 +176,7 @@ FM.SETTING_GROUPS = {
   { key = "duo",      label = "Duo" },
   { key = "fct",      label = "Floating Gains" },
   { key = "fctBlizz", label = "Blizzard Combat Text" },
+  { key = "unitframes", label = "Unit Frames" },
   { key = "tooltip",  label = "Tooltips" },
   { key = "chat",     label = "Chat" },
   { key = "qol",      label = "Quality of Life" },
@@ -180,7 +188,9 @@ FM.SETTINGS = {
   { group = "pill",    key = "pillCombatFade", label = "Dim XP pill in combat",                 default = true },
   { group = "pill",    key = "hideXPBar",      label = "Hide Blizzard's XP bar",                default = false },
   { group = "feed",    key = "feed",           label = "Show activity feed",                    default = true },
+  { group = "feed",    key = "feedGains",      label = "Also show gains: XP, money, loot, reputation, skill-ups", default = true },
   { group = "levelup", key = "levelModal",     label = "Celebrate level-ups with a pop-up",     default = true },
+  { group = "levelup", key = "hideBlizzLevelUp", label = "Hide Blizzard's level-up banner (otherwise ours waits for it)", default = false },
   { group = "levelup", key = "levelSkills",    label = "List new skills to train",              default = true },
   -- Rows with `action` are buttons: clicking runs FM:<action>() instead of toggling
   { group = "levelup", key = "replayLevelUp",  label = "Replay your last level-up",             action = "ReplayLevelUp", button = "Replay" },
@@ -200,6 +210,8 @@ FM.SETTINGS = {
   { group = "fct", key = "fctCombatHide",  label = "Hide during combat",             default = false },
   { group = "fct", key = "fctScale",       label = "Text size",                      default = 1,
     choices = { { 0.8, "Small" }, { 1, "Normal" }, { 1.25, "Large" }, { 1.5, "Huge" } } },
+  { group = "fct", key = "fctSpacing",     label = "Space between lines",            default = 8,
+    choices = { { 2, "Tight" }, { 8, "Normal" }, { 16, "Roomy" }, { 26, "Extra roomy" } } },
   { group = "fct", key = "fctTest",        label = "Show sample floating text",      action = "FCTTest", button = "Test" },
   -- Blizzard's built-in floating combat text (game CVars)
   { group = "fctBlizz", key = "bzDamage",    cvar = "floatingCombatTextCombatDamage",          label = "Your damage numbers over enemies" },
@@ -222,6 +234,13 @@ FM.SETTINGS = {
   { group = "fctBlizz", key = "bzCombo",     cvar = "floatingCombatTextComboPoints",           label = "Combo points" },
   { group = "fctBlizz", key = "bzRep",       cvar = "floatingCombatTextRepChanges",            label = "Reputation changes" },
   { group = "fctBlizz", key = "bzHonor",     cvar = "floatingCombatTextHonorGains",            label = "Honor gains" },
+  -- Blizzard's unit frames (game CVars; rows this client lacks are hidden)
+  { group = "unitframes", key = "ufStatusText",    cvar = "statusText",           label = "Always show health and mana numbers" },
+  { group = "unitframes", key = "ufStatusDisplay", cvar = "statusTextDisplay",    label = "Health and mana text",
+    choices = { { "NUMERIC", "Numbers" }, { "PERCENT", "Percent" }, { "BOTH", "Numbers and percent" }, { "NONE", "Only on hover" } } },
+  { group = "unitframes", key = "ufStatusPercent", cvar = "statusTextPercentage", label = "Show health and mana as a percent" },
+  { group = "unitframes", key = "ufToT",           cvar = "showTargetOfTarget",   label = "Show target of target" },
+  { group = "unitframes", key = "ufTargetCast",    cvar = "showTargetCastbar",    label = "Show your target's cast bar" },
   { group = "tooltip", key = "apTooltip",      label = "Show AP as Strength/Agility",           default = true },
   { group = "tooltip", key = "apTotal",        label = "Show total melee AP from item",         default = true },
   { group = "chat",    key = "hideChatBg",     label = "Hide the chat window background",       default = false },
@@ -312,6 +331,44 @@ function FM:OnSetting(key, fn)
   table.insert(settingHooks[key], fn)
 end
 
+local function currentLevel()
+  local l = safe(UnitLevel("player"))
+  return type(l) == "number" and l > 0 and l or nil
+end
+
+-- hint: the level from an event (may be hidden); live: it happened just now
+-- (false = caught up at login); extra: hp/mp/talents from the event, if readable.
+-- Tells other files through FM:OnLevelGained(level, live, extra).
+function FM:CheckLevel(hint, live, extra)
+  local c = self.char
+  if not c then return end
+  local now = currentLevel()
+  local h = tonumber(safe(hint))
+  if h and (not now or h > now) then now = h end
+  if not now then return end
+  if not c.level or now <= c.level then
+    c.level = c.level or now
+    return
+  end
+  for L = c.level + 1, now do
+    c.level = L
+    c.stats.levels = c.stats.levels + 1
+    if self.session then self.session.levels = self.session.levels + 1 end
+    if live then
+      c.levelTimes[L] = c.played - (c.levelStart or c.played)
+      c.levelStart = c.played
+      self:Log("level", "Reached level " .. L)
+    else
+      c.levelStart = c.played
+      self:Log("level", ("Reached level %d (while Forever Metrics wasn't running)"):format(L))
+    end
+    if self.OnLevelGained then
+      local ok, err = pcall(self.OnLevelGained, self, L, live, L == now and extra or nil)
+      if not ok then print("|cffff5555ForeverMetrics level-up error|r", err) end
+    end
+  end
+end
+
 function FM:Log(kind, text)
   local feed = self.char.feed
   local entry = { t = time(), k = kind, x = text }
@@ -340,6 +397,7 @@ function H.PLAYER_LOGIN()
   local name, realm = UnitName("player"), GetRealmName()
   FM.key = name .. "-" .. realm
   local db = ForeverMetricsDB.chars
+  local isNew = not db[FM.key]
   db[FM.key] = db[FM.key] or newChar(name, realm)
   local c = db[FM.key]
   ensureGather(c)
@@ -349,7 +407,6 @@ function H.PLAYER_LOGIN()
 
   local _, classFile = UnitClass("player")
   c.class = classFile
-  c.level = UnitLevel("player")
   c.lastSeen = time()
   c.levelStart = c.levelStart or c.played
 
@@ -359,13 +416,21 @@ function H.PLAYER_LOGIN()
                  deaths = 0, quests = 0, goldLooted = 0, skillUps = 0,
                  startMoney = GetMoney(), mobs = {}, bestLoot = nil, bestQ = 0 }
 
+  -- A character we've tracked before that's now higher than we last saw
+  -- leveled while the addon wasn't recording: log those levels now.
+  if isNew then
+    c.level = currentLevel() or c.level
+  else
+    FM:CheckLevel(nil, false)
+  end
+
   C_Timer.NewTicker(TICK, function()
     c.played = c.played + TICK
     local z = ZoneName()
     c.zones[z] = (c.zones[z] or 0) + TICK
   end)
 
-  print("|cffe8c27aForever Metrics|r loaded. Type |cffffff00/fm|r to open.")
+  print("|cffe8c27aForever Metrics|r v" .. FM.VERSION .. " loaded. Type |cffffff00/fm|r to open.")
 end
 
 function H.PLAYER_XP_UPDATE()
@@ -381,15 +446,19 @@ function H.PLAYER_XP_UPDATE()
   end
 end
 
-function H.PLAYER_LEVEL_UP(level)
-  local c = FM.char
-  c.level = level
-  c.stats.levels = c.stats.levels + 1
-  FM.session.levels = FM.session.levels + 1
-  c.levelTimes[level] = c.played - (c.levelStart or c.played)
-  c.levelStart = c.played
-  FM:Log("level", "Reached level " .. level)
+-- Level tracking. Forever can hide event values in combat (a ding from a
+-- kill), so the level-up event's numbers can't be trusted on their own.
+-- Instead every level event, and the end of combat, compares the real
+-- level with the last one recorded and logs each level gained, once.
+function H.PLAYER_LEVEL_UP(level, hp, mp, talents)
+  local extra = { hp = tonumber(safe(hp)), mp = tonumber(safe(mp)), talents = tonumber(safe(talents)) }
+  FM:CheckLevel(level, true, extra)
+  -- UnitLevel can lag the event by a moment
+  C_Timer.After(1, function() FM:CheckLevel(level, true, extra) end)
 end
+function H.PLAYER_LEVEL_CHANGED(_, newLevel) FM:CheckLevel(newLevel, true) end
+function H.UNIT_LEVEL(unit) if unit == "player" then FM:CheckLevel(nil, true) end end
+function H.PLAYER_REGEN_ENABLED() FM:CheckLevel(nil, true) end
 
 function H.PLAYER_MONEY()
   local m = GetMoney()
@@ -529,6 +598,13 @@ function FM:RecordCorpseLoot()
     if name and quality and (qty or 0) > 0 then
       L.q[quality] = (L.q[quality] or 0) + 1
       if CLOTH_SET[name] then L.cloth[name] = (L.cloth[name] or 0) + qty end
+      -- tally every item so the stats page can list loot by quality
+      local slotLink = GetLootSlotLink and safe(GetLootSlotLink(slot))
+      local iid = type(slotLink) == "string" and tonumber(slotLink:match("|Hitem:(%d+)")) or nil
+      local key = iid or name
+      local tally = L.items[key] or { n = name, q = quality, id = iid, c = 0 }
+      tally.c = tally.c + qty
+      L.items[key] = tally
       if quality >= 2 then
         local field = quality >= 4 and "purples" or (quality == 3 and "blues" or "greens")
         bump(L.mobs, mob, field); bump(L.zones, zone, field)

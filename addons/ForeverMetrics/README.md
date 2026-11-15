@@ -1,4 +1,4 @@
-# Forever Metrics (v0.10.1)
+# Forever Metrics (v0.16.1)
 
 A RuneMetrics-style tracker for World of Warcraft: Forever. It keeps an activity feed and stats for every character, and you can swap between characters or view totals for your whole account.
 
@@ -35,9 +35,12 @@ A RuneMetrics-style tracker for World of Warcraft: Forever. It keeps an activity
 - **Duo:** Partner (scoreboard and highlights) and Options tabs.
 - **Options:**
   - **Interface:** tabs for XP Pill, Feed, and Level Up
+  - **Unit Frames**
   - **Tooltips**
   - **Chat**
   - **Quality of Life**
+
+The window title shows the installed version, like "Forever Metrics v0.16.1", and so does the "loaded" line in chat at login.
 
 `<` and `>` at the top right switch characters (including "All Characters") on pages that show one character's data. `/fm settings` opens straight to the Options pages.
 
@@ -53,7 +56,7 @@ The Activity section has three tabs:
 - **Loot log**: how many drops of each quality you've looted, cloth totals (linen, wool, silk...), and recent green-or-better finds with the mob, zone, and kill number they dropped on.
 - **Luck**: your drop rates (like "1 green per 42 kills"), kills since your last green and blue, your longest drought, your luckiest zones, your most-hunted mobs, and a log of every blue you've found.
 
-Loot tracking counts each corpse once and skips gathering nodes. It started with v0.4.0, so older kills don't count toward your rates.
+Loot tracking counts each corpse once and skips gathering nodes. From v0.16.1 it also tallies every item you loot by name, quality and count, so the stats page can list loot of every quality, poor and common included. It started with v0.4.0, so older kills don't count toward your rates.
 
 ## Duo mode (new in v0.5.0)
 Play with someone else who runs Forever Metrics and the two addons link up.
@@ -74,12 +77,18 @@ Play with someone else who runs Forever Metrics and the two addons link up.
 - Both of you should run the same version of Forever Metrics.
 
 ## Level-up celebration (new in v0.7.0)
+From v0.15.0 the pop-up has two columns: your new level, how long the last one took, stat gains and talent points on the left, and a scrolling list of skills on the right: what's new this level, then everything coming at the next level that brings new skills, with the training cost underneath. On a controller, the D-pad scrolls the list.
+
 When you ding, a pop-up shows your new level, how long the last level took, your stat gains, any new talent point, and the class skills that just unlocked at your trainer, with their costs and your gold.
 
-- **New skills:** the list comes from your class trainer. Visit your trainer once and it remembers the full list, including skills you're too low for. After that, every level-up shows what's new. This keeps it accurate to Forever, with no hard-coded spell lists.
+- **New skills:** the list comes from three places: your class trainer (visit it once and it remembers the full list, including skills you're too low for), your spellbook (every spell it lists with the level it's learned at), and any spell you learn right around the ding. Each skill shows **learned**, its training cost, or **at trainer**. On a level with nothing new, it shows "New skills at level N" with the next level's skills and their icons (v0.11.3). Upcoming skills come from the trainer, so they need a successful trainer read. Before v0.14.1, each spell kept only its highest rank (Forever's trainer reports skills differently from Classic), so visit each class trainer once after updating to fill in every rank. This keeps it accurate to Forever, with no hard-coded spell lists.
 - **In combat:** if you level up mid-fight, the pop-up waits until combat ends.
+- **No missed levels (v0.11.5):** levels are tracked by comparing your real level with the last one recorded, after every level event and at the end of each fight. So a ding from a kill, where Forever hides the event's values, is still recorded. If you gained levels while the addon wasn't running, they're logged at login (without a pop-up).
+- **Blizzard's banner:** the pop-up waits until Blizzard's own "You've Reached Level N" banner has finished (up to 8 seconds), so they don't overlap. Turn on **Hide Blizzard's level-up banner** under Options > Interface > Level Up to skip Blizzard's and show ours right away (v0.11.4).
 - **Closing it:** click "Nice!", or press Esc, A, or B. It also fades out on its own after 30 seconds, and you can drag it to move it.
 - **Replay:** to see your last level-up again, click **Replay** on the Home dashboard or under Options > Interface > Level Up, or type `/fm levelup last`. Each character remembers its own last ding, even when the pop-up is turned off. If nothing is saved yet, it rebuilds the pop-up for your current level, without stat gains.
+- **Skill tooltips (v0.11.0):** each new skill shows its icon, and hovering it shows the spell's tooltip. Skills saved before v0.11.0 show a short summary until you visit your trainer again. The pop-up stays open while your mouse is over it.
+- **Checking the skill list:** `/fm levelup check` shows what each source can see and lists the skills for your current level and the next two. Run it with your class trainer open and it also prints the trainer's first few entries, which shows why a trainer read fails. If reading the trainer fails, a chat message says so once.
 - `/fm levelup test` previews it, and `/fm levelup` turns it on or off.
 
 ## Combat text (new in v0.10.0)
@@ -88,6 +97,7 @@ Options > **Combat Text** has two tabs.
 **Floating gains** is our own floating text. It rises above your character, one item at a time so nothing overlaps:
 - Money (+1g 20s), items looted with their icon (you choose the quality threshold), reputation (+25 Stormwind), skill-ups (+1 Mining (76)), and optionally XP
 - Quick gains, like several coins or kill XP plus quest XP, combine into one total
+- New lines come in at the bottom and push older ones up, with a gap between them. "Space between lines" sets the gap (v0.11.0).
 - Options for text size and for hiding it during combat
 - To move it, use Edit Mode (the "Forever Metrics Floating Text" box) or `/fm fct move`. `/fm fct reset` puts it back.
 - `/fm fct test` shows samples, and `/fm fct` turns it on or off.
@@ -99,7 +109,24 @@ Options > **Combat Text** has two tabs.
 
 These are game settings, so WoW saves them itself. Options this client doesn't have are hidden, and they can't be changed in combat.
 
-**No custom damage text:** Forever blocks addons from reading the combat log, so custom damage numbers (scroll areas, merged hits, crit sizing) aren't possible. For damage numbers, use the Blizzard tab.
+**No damage text:** Forever blocks addons from reading the combat log, so floating gains don't show damage or spells. For damage numbers, use the Blizzard tab. (Spell cast and hit text was tried in v0.11 and removed in v0.12.0.)
+
+## Professions and inventory (new in v0.16.0)
+Forever Metrics now remembers, for each character, what the stats page needs to show your crafting:
+- **Recipes:** every recipe you know, with its icon, what it makes and its reagents. Saved when you open a profession window (Enchanting's too).
+- **Trainer recipes:** when you open a profession trainer, every recipe it teaches and the skill each needs. That's how the page lists what you could learn now and what's coming up.
+- **Bags and bank:** what you're carrying, refreshed as your bags change. The bank is saved when you open it.
+
+Nothing new shows in game. To fill the page in: open each profession window once, visit each profession trainer once, open your bank once, then log out and send your saved-variables file.
+
+## Unit frames (new in v0.13.0)
+Options > **Unit Frames** has switches for Blizzard's own player, target and party frames:
+- **Always show health and mana numbers**, instead of only when you hover the bar
+- **Health and mana text:** numbers, percent, both, or only on hover (on clients that have this setting)
+- **Show health and mana as a percent** (on clients that have this setting instead)
+- **Show target of target** and **Show your target's cast bar**
+
+These are game settings, so WoW saves them itself. Options this client doesn't have are hidden, and they can't be changed in combat. The text updates right away; if it doesn't, type `/reload`.
 
 ## Chat (new in v0.8.0)
 - **Hide chat buttons (keeps the tabs):** hides the chat menu, channel, voice, and social buttons, each chat window's scroll buttons and bar, and the combat log filter bar. The chat tabs stay visible. The buttons stay hidden even when chat fades in on hover, and turning the option off brings them back.
@@ -123,7 +150,7 @@ Item tooltips with Attack Power get an extra blue line showing what that AP is w
 Every toggle lives under **Options** in the side menu, and `/fm settings` jumps straight there. Each page has a short note at the bottom. Any new settings group added in Core.lua gets its own page automatically.
 
 ## On-screen feed + Edit Mode
-New activity (level-ups, quests, green+ loot, skill milestones, deaths, new zones, duo notices) appears in a small feed. The last 5 lines stay on screen together, and the feed fades out 60 seconds after the last new entry.
+New activity (level-ups, quests, green+ loot, skill milestones, deaths, new zones, duo notices) appears in a small feed. From v0.14.0 it also shows the same gains as the floating text: XP, money, loot, reputation and skill-ups (turn off with "Also show gains" under Options > Interface > Feed). These lines are only shown, not saved to your history, and they follow the floating text's "Items to show" quality setting. With gains on, `/fm feed lines 8` shows more at once. The last 5 lines stay on screen together, and the feed fades out 60 seconds after the last new entry.
 
 To place it, open **Edit Mode** (Esc > Edit Mode). The feed shows up as a blue box labeled "Forever Metrics Feed" with sample lines. Drag it where you want, then close Edit Mode. The position is saved for all your characters.
 

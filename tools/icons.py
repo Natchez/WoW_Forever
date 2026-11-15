@@ -43,18 +43,44 @@ def get(url):
 
 
 def lookup(kind, iid, cache):
+    """The icon name for a spell or item ID. Also caches its display name
+    under "name:<kind>:<id>" for item_name()."""
     key = f"{kind}:{iid}"
-    if key in cache:
+    if key in cache and f"name:{key}" in cache:
         return cache[key]
-    name = None
+    icon = name = None
     try:
         data = json.loads(get(f"https://nether.wowhead.com/tooltip/{kind}/{iid}?dataEnv=4&locale=0"))
-        name = data.get("icon")
+        icon, name = data.get("icon"), data.get("name")
     except Exception:
         pass
-    cache[key] = name
+    cache[key] = icon
+    cache[f"name:{key}"] = name
     time.sleep(0.1)
-    return name
+    return icon
+
+
+def fill_reagent_names(data, cache):
+    """Recipes scanned with the modern trade-skill API save reagents by item ID
+    only. Name them from items the page already knows, else from Wowhead."""
+    known = {}
+    for c in data["chars"]:
+        for e in c.get("reagents", []):
+            if e.get("n"):
+                known[e["id"]] = e["n"]
+        for n in c["loot"]["notable"] + c["loot"].get("items", []):
+            if n.get("id") and n.get("name"):
+                known[n["id"]] = n["name"]
+    for c in data["chars"]:
+        for p in c.get("profs", []):
+            for r in p["recipes"]:
+                for g in r["reagents"]:
+                    if g.get("n") or not g.get("id"):
+                        continue
+                    if g["id"] not in known:
+                        lookup("item", g["id"], cache)
+                        known[g["id"]] = cache.get(f"name:item:{g['id']}")
+                    g["n"] = known[g["id"]]
 
 
 def download(name):
@@ -111,6 +137,7 @@ def main():
             name = lookup(kind, iid, cache)
             if name:
                 icons[f"{kind}:{iid}"] = name
+    fill_reagent_names(data, cache)
     CACHE.write_text(json.dumps(cache))
 
     # names -> icons, for things saved by name only (gathering materials)

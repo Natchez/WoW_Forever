@@ -180,7 +180,10 @@ select:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
 .ico { width: 20px; height: 20px; border-radius: 4px; box-shadow: 0 0 0 1px var(--rule); flex: none; display: inline-block; object-fit: cover; }
 .ico.lg { width: 30px; height: 30px; border-radius: 6px; }
 .bars .lb { display: flex; align-items: center; gap: 7px; min-width: 0; }
-.bars .lb span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bars .lb span, .bars .lb a { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bars .lb a { color: var(--ink); text-decoration: underline; text-decoration-color: var(--gold-soft); text-underline-offset: 3px; }
+.bars .lb a:hover { color: var(--gold); text-decoration-color: var(--gold); }
+.bars .lb a:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; border-radius: 2px; }
 
 /* professions */
 .profs { display: grid; gap: 14px; }
@@ -349,7 +352,9 @@ select:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
     var max = fixedMax || Math.max.apply(null, rows.map(function (r) { return r.value; })) || 1;
     return el("ul", { "class": "bars" }, rows.map(function (r) {
       return el("li", { "data-tip": tipFn ? tipFn(r) : r.name + ": " + fmt(r.value) }, [
-        el("span", { "class": "lb" }, [r.icon ? ico(r.icon) : null, el("span", { text: r.name })]),
+        el("span", { "class": "lb" }, [r.icon ? ico(r.icon) : null, r.href
+          ? el("a", { href: r.href, target: "_blank", rel: "noopener", text: r.name, "aria-label": r.name + " on Wowhead (opens in a new tab)" })
+          : el("span", { text: r.name })]),
         el("span", { "class": "tr" }, [el("span", { "class": "fl", style: "display:block;width:" + (100 * r.value / max) + "%" })]),
         el("span", { "class": "vl", text: fmt(r.value) })
       ]);
@@ -418,7 +423,11 @@ select:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
     box.appendChild(renderLoot(c));
 
     // most hunted
-    box.appendChild(panel("Most hunted", false, [barList(c.kills, n, function (r) { return r.name + ": " + n(r.value) + " kills"; }) || empty("No kills yet.")]));
+    // each mob links to a Wowhead Classic search, opened on its NPCs tab (drop table one click away)
+    var hunted = c.kills.map(function (r) {
+      return { name: r.name, value: r.value, href: "https://www.wowhead.com/classic/search?q=" + encodeURIComponent(r.name) + "#npcs" };
+    });
+    box.appendChild(panel("Most hunted", false, [barList(hunted, n, function (r) { return r.name + ": " + n(r.value) + " kills · click for Wowhead"; }) || empty("No kills yet.")]));
 
     // professions & skills
     var skills = c.skills.slice(0, 8).map(function (x) { return { name: x.name, value: x.rank, icon: "prof:" + x.name }; });

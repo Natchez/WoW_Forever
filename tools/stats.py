@@ -217,7 +217,8 @@ def build_profs(c, trainers, inv):
     have_by_name = {e["n"]: e["bags"] + e["bank"] for e in inv.values() if e.get("n")}
     ranks = {s: as_dict(v).get("rank", 0) for s, v in as_dict(c.get("skills")).items()}
     saved = as_dict(c.get("prof"))
-    names = [n for n in saved] + [n for n in ranks if n in PROFESSIONS and n not in saved]
+    # a scan taken before the profession window finished loading can be saved under ""
+    names = [n for n in saved if n] + [n for n in ranks if n in PROFESSIONS and n not in saved]
     out, reagent_ids = [], set()
     for name in names:
         P = as_dict(saved.get(name))

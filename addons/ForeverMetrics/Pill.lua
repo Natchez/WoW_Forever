@@ -135,7 +135,7 @@ local function sessionCard()
   return table.concat(out, "\n")
 end
 
-local barPct, restPct = 0, 0
+local barPct, restPct, isRested = 0, 0, false
 
 local function update()
   if not pill then return end
@@ -144,12 +144,13 @@ local function update()
 
   if isMaxed() then
     head:SetText(("|cffe8c27aLv %d|r  max level"):format(lvl))
-    barPct, restPct = 0, 0
+    barPct, restPct, isRested = 0, 0, false
   else
     local cur, max = UnitXP("player"), UnitXPMax("player")
     local pct = max > 0 and cur / max or 0
     head:SetText(("|cffe8c27aLv %d|r  %s / %s  |cffa8977a%d%%|r"):format(lvl, num(cur), num(max), math.floor(pct * 100)))
-    local rested = GetXPExhaustion and GetXPExhaustion() or 0
+    local rested = tonumber(GetXPExhaustion and GetXPExhaustion()) or 0
+    isRested = rested > 0
     barPct = math.min(1, math.max(0, pct))
     restPct = math.min(1, (cur + rested) / math.max(max, 1))
   end
@@ -174,6 +175,8 @@ local function update()
   local inner = pw - 20
   barFill:SetWidth(math.max(0.001, inner * barPct))
   barRest:SetWidth(math.max(0.001, inner * restPct))
+  local c = isRested and FM.THEME.barRested or FM.THEME.bar
+  barFill:SetColorTexture(c[1], c[2], c[3], c[4])
   if divider then if expanded then divider:Show() else divider:Hide() end end
 end
 

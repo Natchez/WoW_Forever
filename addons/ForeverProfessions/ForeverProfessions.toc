@@ -1,0 +1,14 @@
+## Interface: 16001
+## Title: Forever Professions
+## Notes: See which recipes use an item (hover, Shift, Alt-click), and every profession across your characters. /fp
+## Author: You
+## Version: 0.1.2
+## SavedVariables: ForeverProfessionsDB
+## OptionalDeps: ForeverMetrics
+
+Data.lua
+Core.lua
+Scan.lua
+Model.lua
+Tooltip.lua
+UI.lua

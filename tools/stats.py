@@ -217,7 +217,8 @@ def build_profs(c, trainers, inv):
     have_by_name = {e["n"]: e["bags"] + e["bank"] for e in inv.values() if e.get("n")}
     ranks = {s: as_dict(v).get("rank", 0) for s, v in as_dict(c.get("skills")).items()}
     saved = as_dict(c.get("prof"))
-    names = [n for n in saved] + [n for n in ranks if n in PROFESSIONS and n not in saved]
+    # a scan taken before the profession window finished loading can be saved under ""
+    names = [n for n in saved if n] + [n for n in ranks if n in PROFESSIONS and n not in saved]
     out, reagent_ids = [], set()
     for name in names:
         P = as_dict(saved.get(name))
@@ -252,7 +253,11 @@ def build_profs(c, trainers, inv):
                 continue
             entry = {"n": t.get("n"), "r": t.get("r"), "spell": t.get("spell"), "skill": t.get("skill", 0),
                      "lv": t.get("lv"), "cost": t.get("cost", 0)}
-            (missing if (t.get("skill") or 0) <= rank else upcoming).append(entry)
+            if (t.get("skill") or 0) > rank:
+                upcoming.append(entry)
+            elif recipes:
+                # only trustworthy once we know which recipes this character has
+                missing.append(entry)
         missing.sort(key=lambda x: (x["skill"], x["n"] or ""))
         upcoming.sort(key=lambda x: (x["skill"], x["n"] or ""))
         out.append({"name": name, "rank": rank, "max": P.get("max"), "scanned": P.get("scanned"),
@@ -266,18 +271,6 @@ def build_char(key, c, trainers=None):
     s = as_dict(c.get("stats"))
     loot = as_dict(c.get("loot"))
     q = as_map(loot.get("q"))
-    sessions = []
-    for ses in as_list(c.get("sessions")):
-        ses = as_dict(ses)
-        start, stop = ses.get("start"), ses.get("stop")
-        if not start or not stop or stop <= start:
-            continue
-        dur = stop - start
-        if dur < 300:  # quick logins say nothing about pace
-            continue
-        sessions.append({"start": start, "dur": dur, "xp": ses.get("xp", 0), "kills": ses.get("kills", 0),
-                         "quests": ses.get("quests", 0), "levels": ses.get("levels", 0),
-                         "best": item(ses.get("bestLoot")) if ses.get("bestLoot") else None})
     gathering = {}
     for g, d in as_dict(c.get("gathering")).items():
         d = as_dict(d)
@@ -289,12 +282,6 @@ def build_char(key, c, trainers=None):
         it = item(n.get("link"))
         notable.append({"name": it["name"], "id": it["id"], "q": n.get("q", it["q"]), "mob": n.get("mob"), "zone": n.get("zone"),
                         "t": n.get("t"), "kill": n.get("kill")})
-    feed = []
-    for e in as_list(c.get("feed"))[-40:]:
-        e = as_dict(e)
-        feed.append({"t": e.get("t"), "k": e.get("k"), "x": strip_codes(e.get("x"))})
-    xp_time = sum(x["dur"] for x in sessions)
-    xp_sum = sum(x["xp"] for x in sessions)
     return {
         "key": key,
         "name": c.get("name"),
@@ -305,9 +292,6 @@ def build_char(key, c, trainers=None):
         "created": c.get("created"),
         "lastSeen": c.get("lastSeen"),
         "stats": {k: s.get(k, 0) for k in ("kills", "deaths", "quests", "levels", "xp", "goldLooted", "goldEarned", "goldSpent")},
-        "xpPerHour": round(xp_sum / (xp_time / 3600)) if xp_time >= 1800 else None,
-        "levelTimes": {int(k): v for k, v in as_map(c.get("levelTimes")).items()},
-        "zones": top(c.get("zones"), 8),
         "kills": top(c.get("kills"), 8),
         "skills": sorted(({"name": k, "rank": as_dict(v).get("rank", 0)} for k, v in as_dict(c.get("skills")).items()),
                          key=lambda x: -x["rank"]),
@@ -317,8 +301,6 @@ def build_char(key, c, trainers=None):
                                    "c": as_dict(v).get("c", 0)} for v in as_dict(loot.get("items")).values()),
                                  key=lambda x: (-(x["c"] or 0), x["name"] or "")),
                  "longestDry": loot.get("longestDry", 0)},
-        "sessions": sessions,
-        "feed": feed,
         **profs_and_bags(c, trainers or {}),
     }
 
@@ -356,17 +338,36 @@ def build_duo(db):
     return out
 
 
+def merge_trainers(lists):
+    """Profession trainers teach the same recipes to everyone, so pool what
+    every character on either account has seen: any character with the
+    profession gets the full list. Where both saw a recipe, the newer scan wins."""
+    out = {}
+    for T in lists:
+        for prof, P in T.items():
+            P = as_dict(P)
+            M = out.setdefault(prof, {"recipes": {}, "scanned": 0})
+            newer = (P.get("scanned") or 0) >= M["scanned"]
+            for k, r in as_dict(P.get("recipes")).items():
+                if newer or k not in M["recipes"]:
+                    M["recipes"][k] = r
+            M["scanned"] = max(M["scanned"], P.get("scanned") or 0)
+    return out
+
+
 def main(args):
     if not args:
         sys.exit(__doc__)
     chars, duo, snapshot, owners = {}, [], 0, []
+    files = []
     for arg in args:
         path, _, owner = arg.partition("=")
         owner = owner or Path(path).stem
         if owner not in owners:
             owners.append(owner)
-        db = LuaParser(Path(path).read_text(encoding="utf-8")).globals().get("ForeverMetricsDB") or {}
-        trainers = as_dict(db.get("profTrainer"))
+        files.append((owner, LuaParser(Path(path).read_text(encoding="utf-8")).globals().get("ForeverMetricsDB") or {}))
+    trainers = merge_trainers(as_dict(db.get("profTrainer")) for _, db in files)
+    for owner, db in files:
         for key, c in as_dict(db.get("chars")).items():
             built = build_char(key, as_dict(c), trainers)
             built["owner"] = owner

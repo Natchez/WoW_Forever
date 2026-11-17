@@ -1,4 +1,4 @@
-# Forever Metrics (v0.16.1)
+# Forever Metrics (v0.16.6)
 
 A RuneMetrics-style tracker for World of Warcraft: Forever. It keeps an activity feed and stats for every character, and you can swap between characters or view totals for your whole account.
 
@@ -40,12 +40,12 @@ A RuneMetrics-style tracker for World of Warcraft: Forever. It keeps an activity
   - **Chat**
   - **Quality of Life**
 
-The window title shows the installed version, like "Forever Metrics v0.16.1", and so does the "loaded" line in chat at login.
+The window title shows the installed version, like "Forever Metrics v0.16.6", and so does the "loaded" line in chat at login.
 
 `<` and `>` at the top right switch characters (including "All Characters") on pages that show one character's data. `/fm settings` opens straight to the Options pages.
 
 ## XP pill
-A small pill shows your level and current XP, with a thin progress bar along the bottom (blue is rested XP). Hover it, or bind "Expand / collapse XP pill" to a key or controller button, to open the details: XP to level, rested XP, xp/hr, estimated time to ding, and session stats. Every XP gain pops a "+245 xp" beside it that grows, then fades away. It dims in combat.
+A small pill shows your level and current XP, with a thin progress bar along the bottom. The bar is gold, and turns blue while you have rested XP (from v0.16.3, on the dashboard's Next level bar too); a fainter blue strip past it shows how far your rested XP reaches. Hover it, or bind "Expand / collapse XP pill" to a key or controller button, to open the details: XP to level, rested XP, xp/hr, estimated time to ding, and session stats. Every XP gain pops a "+245 xp" beside it that grows, then fades away. It dims in combat.
 
 - `/fm pill` turns it on or off. `/fm pill scale 1.2`, `/fm pill reset`, and `/fm pill test` are also available.
 - `/fm xpbar` hides or shows Blizzard's XP bar.
@@ -77,7 +77,7 @@ Play with someone else who runs Forever Metrics and the two addons link up.
 - Both of you should run the same version of Forever Metrics.
 
 ## Level-up celebration (new in v0.7.0)
-From v0.15.0 the pop-up has two columns: your new level, how long the last one took, stat gains and talent points on the left, and a scrolling list of skills on the right: what's new this level, then everything coming at the next level that brings new skills, with the training cost underneath. On a controller, the D-pad scrolls the list.
+From v0.15.0 the pop-up has two columns: your new level, how long the last one took, stat gains and talent points on the left, and a scrolling list of skills on the right: what's new this level, then everything coming at the next level that brings new skills, with each skill's training cost. From v0.16.5 each section heading shows its training cost on the right: **New this level** totals what you haven't trained up to this level ("incl. skipped" means it counts skills you skipped at earlier levels too), and **Next up** shows the next level's cost and the total of both. On a controller, the D-pad scrolls the list.
 
 When you ding, a pop-up shows your new level, how long the last level took, your stat gains, any new talent point, and the class skills that just unlocked at your trainer, with their costs and your gold.
 
@@ -130,6 +130,7 @@ These are game settings, so WoW saves them itself. Options this client doesn't h
 
 ## Chat (new in v0.8.0)
 - **Hide chat buttons (keeps the tabs):** hides the chat menu, channel, voice, and social buttons, each chat window's scroll buttons and bar, and the combat log filter bar. The chat tabs stay visible. The buttons stay hidden even when chat fades in on hover, and turning the option off brings them back.
+- **Hide chat until you mouse over it or type (new in v0.16.2):** chat windows, tabs and chat buttons stay fully invisible. They fade in while your mouse is over a chat window or its tabs, or while you're typing (press Enter), and fade out about 1.5 seconds after. New messages don't bring chat back on their own, so check it now and then for whispers. Links in invisible chat can still be clicked.
 - **Hide the chat window background:** makes every chat window's background fully transparent, so you see just the text. It uses WoW's own chat opacity setting, and turning it off restores the opacity you had before. Blizzard may still briefly show the background while your mouse is over the chat.
 
 ## Quality of Life (new in v0.7.0)

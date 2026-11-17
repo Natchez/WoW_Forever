@@ -563,7 +563,7 @@ local function build()
   -- skills list (scrolls when long)
   local sf = CreateFrame("ScrollFrame", nil, modal, "UIPanelScrollFrameTemplate")
   sf:SetPoint("TOPLEFT", RIGHT_X, -18)
-  sf:SetPoint("BOTTOMRIGHT", -32, 70)
+  sf:SetPoint("BOTTOMRIGHT", -32, 52)
   local child = CreateFrame("Frame", nil, sf)
   child:SetSize(W - RIGHT_X - 32, 10)
   sf:SetScrollChild(child)
@@ -575,10 +575,6 @@ local function build()
   modal.empty:SetJustifyH("LEFT")
   modal.empty:SetSpacing(3)
 
-  modal.foot = modal:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-  modal.foot:SetPoint("BOTTOMLEFT", RIGHT_X + 2, 52)
-  modal.foot:SetPoint("RIGHT", modal, "RIGHT", -20, 0)
-  modal.foot:SetJustifyH("LEFT")
 
   modal.ok = CreateFrame("Button", nil, modal, "UIPanelButtonTemplate")
   modal.ok:SetSize(110, 24)
@@ -640,7 +636,7 @@ end
 -- Fill the skills list: section headers and skill rows
 local function fillSkills(data)
   for _, r in ipairs(modal.rows) do r:Hide() end
-  modal.empty:Hide(); modal.foot:SetText("")
+  modal.empty:Hide()
   modal.list:SetVerticalScroll(0)
 
   if not FM:GetSetting("levelSkills") then
@@ -664,12 +660,14 @@ local function fillSkills(data)
   end
 
   local i, y = 0, 0
-  local function header(text)
+  -- a section heading, with its training cost right-aligned in the cost column
+  local function header(text, cost)
     i = i + 1
     local r = getRow(i)
     r.skill = nil
-    r.icon:Hide(); r.name:Hide(); r.cost:Hide(); r.hl:Hide()
+    r.icon:Hide(); r.name:Hide(); r.hl:Hide()
     r.hdr:SetText(text); r.hdr:Show()
+    if cost then r.cost:SetText(cost); r.cost:Show() else r.cost:Hide() end
     r:SetAlpha(1)
     r:ClearAllPoints()
     r:SetPoint("TOPLEFT", modal.listChild, "TOPLEFT", 0, -y)
@@ -699,13 +697,31 @@ local function fillSkills(data)
     y = y + ROW_H
   end
 
+  -- training costs go in the headings: this level's (plus anything skipped
+  -- at earlier levels), then the next level's with the running total
+  local earlier = 0
+  for L = 1, data.level - 1 do
+    local _, c = skillsAt(L)
+    earlier = earlier + c
+  end
+  local nowCost = (data.cost or 0) + earlier
   if #data.skills > 0 then
-    header(("New this level (%d)"):format(#data.skills))
+    local c
+    if nowCost > 0 then
+      c = money(nowCost)
+      if earlier > 0 then c = c .. "  |cffa8977a(incl. skipped)|r" end
+    end
+    header(("New this level (%d)"):format(#data.skills), c)
     for _, sk in ipairs(data.skills) do row(sk, false) end
     y = y + 8
   end
   if nextLevel then
-    header(("Next up: level %d (%d)"):format(nextLevel, #nextList))
+    local c
+    if nextCost > 0 then
+      c = money(nextCost)
+      if nowCost > 0 then c = ("%s  |cffa8977atotal|r %s"):format(c, money(nowCost + nextCost)) end
+    end
+    header(("Next up: level %d (%d)"):format(nextLevel, #nextList), c)
     for _, sk in ipairs(nextList) do row(sk, true) end
   end
   if i == 0 then
@@ -714,16 +730,6 @@ local function fillSkills(data)
     y = 80
   end
   modal.listChild:SetHeight(math.max(y, 10))
-
-  -- cost line under the list
-  local have = GetMoney()
-  if (data.cost or 0) > 0 then
-    local t = ("Train now: %s  ·  you have %s"):format(money(data.cost), money(have))
-    if have < data.cost then t = t .. "  |cffff6b6b(short)|r" end
-    modal.foot:SetText(t)
-  elseif nextLevel and nextCost > 0 then
-    modal.foot:SetText(("Level %d training: %s  ·  you have %s"):format(nextLevel, money(nextCost), money(have)))
-  end
 end
 
 local function show(data, keepAnim)

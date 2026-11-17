@@ -1,0 +1,5 @@
+<Bindings>
+  <Binding name="FOREVERPROFESSIONS_TOGGLE" header="FOREVERPROFESSIONS" category="ADDONS">
+    ForeverProfessions:Toggle()
+  </Binding>
+</Bindings>

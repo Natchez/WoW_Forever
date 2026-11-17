@@ -54,7 +54,15 @@ end
 
 local function recipeLeft(e)
   local col = e.kind == "learn" and "e8c27a" or (FP.DIFF_COLOR[e.diff or 3] or "ffffff")
-  local sq = e.kind == "learn" and LEARN_SQUARE or (SQUARE[e.diff or 3] or SQUARE[3])
+  -- the recipe's icon (or the item it makes), trimmed of its border; the
+  -- name's colour shows the difficulty. A coloured square if there's no icon.
+  local icon = e.icon or (e.made and FP:ItemIcon(e.made))
+  local sq
+  if icon and icon ~= 134400 then
+    sq = "|T" .. icon .. ":14:14:0:0:64:64:5:59:5:59|t "
+  else
+    sq = e.kind == "learn" and LEARN_SQUARE or (SQUARE[e.diff or 3] or SQUARE[3])
+  end
   return sq .. "|cff" .. col .. (e.n or "?") .. "|r " .. MUTED .. "×" .. (e.need or 1) .. "|r"
 end
 

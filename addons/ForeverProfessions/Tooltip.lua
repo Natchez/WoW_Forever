@@ -53,7 +53,7 @@ function FP:EntryNote(e, item)
 end
 
 local function recipeLeft(e)
-  local col = e.kind == "learn" and "e8c27a" or (FP.DIFF_COLOR[e.diff or 3] or "ffffff")
+  local col = e.kind == "learn" and "e8c27a" or (e.diff and FP.DIFF_COLOR[e.diff] or "ffffff")
   -- the recipe's icon (or the item it makes), trimmed of its border; the
   -- name's colour shows the difficulty. A coloured square if there's no icon.
   local icon = e.icon or (e.made and FP:ItemIcon(e.made))

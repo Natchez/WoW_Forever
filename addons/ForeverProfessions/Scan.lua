@@ -28,8 +28,31 @@ end
 -- Skill ranks
 ---------------------------------------------------------------------------
 
+local function setSkill(name, rank, max)
+  local c = FP:Char()
+  if not (c and name and FP.PROFESSIONS[name]) then return end
+  local s = c.skills[name] or {}
+  c.skills[name] = s
+  s.rank, s.max = rank or s.rank, max or s.max
+  local P = c.prof[name]
+  if P then P.rank, P.max = s.rank or P.rank, s.max or P.max end
+  FP:Changed()
+end
+
+-- Modern clients list professions with GetProfessions/GetProfessionInfo
+local function scanProfessions()
+  if not (GetProfessions and GetProfessionInfo) then return end
+  for _, idx in ipairs({ GetProfessions() }) do
+    if idx then
+      local ok, name, _, rank, max = pcall(GetProfessionInfo, idx)
+      if ok then setSkill(safe(name), tonumber(safe(rank)), tonumber(safe(max))) end
+    end
+  end
+end
+
 local function scanSkills()
   local c = FP:Char()
+  if c then pcall(scanProfessions) end
   if not c or not GetNumSkillLines or not GetSkillLineInfo then return end
   for i = 1, GetNumSkillLines() or 0 do
     local name, isHeader, _, rank, _, _, max = GetSkillLineInfo(i)
@@ -39,6 +62,56 @@ local function scanSkills()
       if c.prof[name] then c.prof[name].rank, c.prof[name].max = rank, max or c.prof[name].max end
     end
   end
+end
+
+-- "Your skill in Blacksmithing has increased to 92."
+local SKILL_PAT
+do
+  local f = type(SKILL_RANK_UP) == "string" and SKILL_RANK_UP or "Your skill in %s has increased to %d."
+  SKILL_PAT = "^" .. f:gsub("([%(%)%.%%%+%-%*%?%[%]%^%$])", "%%%1"):gsub("%%%%s", "(.+)"):gsub("%%%%d", "(%%d+)")
+end
+
+---------------------------------------------------------------------------
+-- Learning something at a trainer (or from a recipe item) counts at once,
+-- without waiting for the profession window: a recipe is added to what this
+-- character knows (colour unknown until the window is opened), and
+-- "Journeyman Blacksmithing" and the like raise the skill cap.
+---------------------------------------------------------------------------
+
+local RANK_CAP = { Apprentice = 75, Journeyman = 150, Expert = 225, Artisan = 300 }
+
+function FP:MarkLearned(spell)
+  local c = self:Char()
+  spell = tonumber(spell)
+  if not c or not spell then return end
+  local db = self:DB()
+  local prof, t
+  for p, T in pairs(db.trainers) do
+    local e = T.recipes and T.recipes["s" .. spell]
+    if e then prof, t = p, e; break end
+  end
+  local R = self:Recipe(spell)
+  prof = prof or (R and R.p)
+  local name = (t and t.n) or (R and R.n)
+  if not name then
+    local f = (C_Spell and C_Spell.GetSpellName) or GetSpellInfo
+    name = f and safe((f(spell)))
+  end
+  if not prof or not name then return end
+  local title, of = name:match("^(%a+) (.+)$")
+  if title and RANK_CAP[title] and self.PROFESSIONS[of or ""] then
+    setSkill(of, nil, RANK_CAP[title])
+    return
+  end
+  local P = c.prof[prof] or { recipes = {} }
+  c.prof[prof] = P
+  P.recipes = P.recipes or {}
+  if P.recipes["s" .. spell] then return end
+  for k, r in pairs(P.recipes) do if r.n == name then return end end
+  local regs = {}
+  for _, g in ipairs(R and R.r or {}) do regs[#regs + 1] = { id = g.id, c = g.c } end
+  P.recipes["s" .. spell] = { n = name, spell = spell, item = R and R.i, icon = t and t.icon, reagents = regs }
+  self:Changed()
 end
 
 ---------------------------------------------------------------------------
@@ -248,11 +321,42 @@ end
 -- set each other off. Its lists are merged in at login instead.
 ---------------------------------------------------------------------------
 
+local scanTip
 local function serviceSpell(i)
   if C_TooltipInfo and C_TooltipInfo.GetTrainerService then
     local ok, data = pcall(C_TooltipInfo.GetTrainerService, i)
     if ok and type(data) == "table" and type(safe(data.id)) == "number" then return safe(data.id) end
   end
+  -- older clients: fill a hidden tooltip with the service and ask it for the spell
+  if not scanTip then
+    scanTip = CreateFrame("GameTooltip", "ForeverProfessionsScanTip", UIParent, "GameTooltipTemplate")
+  end
+  scanTip:SetOwner(UIParent, "ANCHOR_NONE")
+  if not scanTip.SetTrainerService or not pcall(scanTip.SetTrainerService, scanTip, i) then return end
+  local id
+  if scanTip.GetSpell then
+    local ok, _, sid = pcall(scanTip.GetSpell, scanTip)
+    id = ok and safe(sid) or nil
+  end
+  scanTip:Hide()
+  return type(id) == "number" and id or nil
+end
+
+-- One trainer list entry per recipe: an entry saved by name (no spell ID
+-- known then) is replaced once the ID turns up
+local function putTrainer(T, entry)
+  if entry.spell then
+    for k, r in pairs(T.recipes) do
+      if not r.spell and r.n == entry.n then T.recipes[k] = nil end
+    end
+    T.recipes["s" .. entry.spell] = entry
+  else
+    for _, r in pairs(T.recipes) do
+      if r.n == entry.n and r.spell then return r end -- keep the one with the ID
+    end
+    T.recipes[entry.n] = entry
+  end
+  return entry
 end
 
 local function scanTrainer()
@@ -269,12 +373,14 @@ local function scanTrainer()
         local id = serviceSpell(i)
         local T = db.trainers[prof] or { recipes = {} }
         db.trainers[prof] = T
-        T.recipes[id and ("s" .. id) or name] = {
+        local e = putTrainer(T, {
           n = name, spell = id, skill = skill or 0,
           lv = GetTrainerServiceLevelReq and tonumber(safe(GetTrainerServiceLevelReq(i))),
           cost = (GetTrainerServiceCost and tonumber(safe(GetTrainerServiceCost(i)))) or 0,
           icon = GetTrainerServiceIcon and safe(GetTrainerServiceIcon(i)),
-        }
+        })
+        -- "used" = already learned: count it as known right away
+        if (category == "used" or rank == "used") and e.spell then FP:MarkLearned(e.spell) end
         T.scanned = time()
         n = n + 1
       end
@@ -294,7 +400,7 @@ local function mergeMetricsTrainers()
       db.trainers[prof] = mine
       for k, r in pairs(T.recipes or {}) do
         if not mine.recipes[k] then
-          mine.recipes[k] = { n = r.n, spell = r.spell, skill = r.skill, cost = r.cost, lv = r.lv, icon = r.icon }
+          putTrainer(mine, { n = r.n, spell = r.spell, skill = r.skill, cost = r.cost, lv = r.lv, icon = r.icon })
         end
       end
       mine.scanned = math.max(mine.scanned or 0, T.scanned or 0)
@@ -330,3 +436,21 @@ FP:On("BANKFRAME_CLOSED", function() bankOpen = false end)
 FP:On("PLAYERBANKSLOTS_CHANGED", function() if bankOpen then FP:Try("bank scan", scanBank) end end)
 FP:On("TRAINER_SHOW", trainerSoon)
 FP:On("TRAINER_UPDATE", trainerSoon)
+-- Forever Metrics reads the whole trainer list (it flips the filters); add
+-- what it found once it's done, not just at login
+local fmQueued = false
+FP:On("TRAINER_UPDATE", function()
+  if fmQueued then return end
+  fmQueued = true
+  C_Timer.After(2, function() fmQueued = false; FP:Try("merge trainers", mergeMetricsTrainers); FP:Changed() end)
+end)
+FP:On("TRAINER_CLOSED", function() FP:Try("merge trainers", mergeMetricsTrainers); FP:Changed() end)
+FP:On("LEARNED_SPELL_IN_TAB", function(id) FP:MarkLearned(id) end)
+FP:On("LEARNED_SPELL_IN_SKILL_LINE", function(id) FP:MarkLearned(id) end)
+FP:On("NEW_RECIPE_LEARNED", function(id) FP:MarkLearned(id) end)
+FP:On("CHAT_MSG_SKILL", function(msg)
+  msg = safe(msg)
+  if type(msg) ~= "string" then return end
+  local name, rank = msg:match(SKILL_PAT)
+  if name then setSkill(name, tonumber(rank)) end
+end)

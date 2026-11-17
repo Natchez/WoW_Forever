@@ -34,7 +34,7 @@ local function sectionIndex(key) for i, s in ipairs(SECTIONS) do if s.key == key
 
 local function colored(e)
   if e.kind == "learn" then return GOLD .. (e.n or "?") .. "|r" end
-  return "|cff" .. (FP.DIFF_COLOR[e.diff or 3] or "ffffff") .. (e.n or "?") .. "|r"
+  return "|cff" .. (e.diff and FP.DIFF_COLOR[e.diff] or "ffffff") .. (e.n or "?") .. "|r"
 end
 
 local function newButton(parent, label, w, h)
@@ -288,7 +288,7 @@ local function recipeRows()
   local rows, lastGroup = {}, nil
   for _, e in ipairs(FP:RecipeList(pr.key, pr.prof)) do
     if passes(e, ui.filter) and matchesSearch(e, q) then
-      local g = e.kind == "learn" and "Learn at trainer" or DIFF_GROUP[e.diff or 3]
+      local g = e.kind == "learn" and "Learn at trainer" or (e.diff and DIFF_GROUP[e.diff]) or "Just learned  ·  open the window for colours"
       if g ~= lastGroup then rows[#rows + 1] = { header = g }; lastGroup = g end
       rows[#rows + 1] = e
     end
@@ -426,7 +426,8 @@ local function fillDetail(e, pr)
   if e.kind == "learn" then
     d.sub:SetText(pr.prof .. MUTED .. "  ·  learn at a trainer: " .. FP:Money(e.cost or 0) .. ", needs skill " .. (e.skill or "?") .. "|r")
   else
-    d.sub:SetText(pr.prof .. MUTED .. "  ·  |r|cff" .. FP.DIFF_COLOR[e.diff or 3] .. (FP.DIFF_LABEL[e.diff or 3] or "") .. "|r")
+    d.sub:SetText(pr.prof .. MUTED .. "  ·  |r" .. (e.diff and ("|cff" .. FP.DIFF_COLOR[e.diff] .. FP.DIFF_LABEL[e.diff] .. "|r")
+      or (MUTED .. "just learned: open your " .. pr.prof .. " window to see its colour|r")))
   end
   local regs = e.reagents or {}
   for i, g in ipairs(regs) do

@@ -130,7 +130,16 @@ local function chars()
   return keys
 end
 
+local RANK_CAP = { Apprentice = 75, Journeyman = 150, Expert = 225, Artisan = 300 }
+
 local function knows(c, prof, spell, name)
+  -- "Journeyman Blacksmithing": trained once your cap has reached it
+  local title = type(name) == "string" and name:match("^(%a+) ")
+  if title and RANK_CAP[title] then
+    local s, P = c.skills and c.skills[prof], c.prof and c.prof[prof]
+    local max = (s and s.max) or (P and P.max) or 0
+    return max >= RANK_CAP[title]
+  end
   local P = c.prof and c.prof[prof]
   if not P or not P.recipes then return false end
   if spell and P.recipes["s" .. spell] then return true end

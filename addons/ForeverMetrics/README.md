@@ -1,4 +1,4 @@
-# Forever Metrics (v0.16.6)
+# Forever Metrics (v0.16.7)
 
 A RuneMetrics-style tracker for World of Warcraft: Forever. It keeps an activity feed and stats for every character, and you can swap between characters or view totals for your whole account.
 
@@ -40,7 +40,7 @@ A RuneMetrics-style tracker for World of Warcraft: Forever. It keeps an activity
   - **Chat**
   - **Quality of Life**
 
-The window title shows the installed version, like "Forever Metrics v0.16.6", and so does the "loaded" line in chat at login.
+The window title shows the installed version, like "Forever Metrics v0.16.7", and so does the "loaded" line in chat at login.
 
 `<` and `>` at the top right switch characters (including "All Characters") on pages that show one character's data. `/fm settings` opens straight to the Options pages.
 
@@ -134,7 +134,8 @@ These are game settings, so WoW saves them itself. Options this client doesn't h
 - **Hide the chat window background:** makes every chat window's background fully transparent, so you see just the text. It uses WoW's own chat opacity setting, and turning it off restores the opacity you had before. Blizzard may still briefly show the background while your mouse is over the chat.
 
 ## Quality of Life (new in v0.7.0)
-These Leatrix-style toggles are all off by default. Find them under Options > Quality of Life.
+These Leatrix-style toggles are all off by default, except mail contacts. Find them under Options > Quality of Life.
+- **Mail contacts (new in v0.16.7, on by default):** a list beside the Send Mail tab with the people you've mailed recently, everyone on your friends list (offline friends too, greyed; the game's own name suggestions only offer online ones), and your other characters on this realm. Click a name to fill in "To:". Right-click a recent name to forget it. Recent names are saved per realm, the last 15.
 - **Sell grey items at vendors:** sells your junk when you open a merchant and tells you what it earned.
 - **Repair gear at vendors:** repairs everything with your own gold whenever the merchant can repair.
 - **Faster auto loot:** grabs all the loot at once. It follows your Auto Loot game setting and the key that flips it.

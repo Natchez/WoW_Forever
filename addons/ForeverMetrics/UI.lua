@@ -391,7 +391,7 @@ local NOTES = {
   unitframes = "These are WoW's own unit frame settings, saved by the game. Options this client doesn't have are hidden. They can't be changed in combat. If the text doesn't update right away, type /reload.",
   tooltip = "Uses base ratios before talents and buffs. Conditional AP (vs Undead, feral forms) is skipped.",
   chat    = "The background option uses WoW's own chat opacity setting, so turning it off restores what you had. Hidden buttons stay hidden even when chat fades in on hover; the tabs always stay.",
-  qol     = "All off by default. Faster auto loot follows your Auto Loot game setting.",
+  qol     = "All off by default except mail contacts. Faster auto loot follows your Auto Loot game setting. Mail contacts: click a name to fill in To:, right-click a recent name to forget it.",
 }
 
 local function buildSections()

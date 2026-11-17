@@ -7,6 +7,7 @@ Our addons for World of Warcraft: Forever.
 | Addon | Version | What it does |
 |---|---|---|
 | [ForeverMetrics](addons/ForeverMetrics) | 0.16.5 | Stats, activity feed, loot luck, XP pill, level-up pop-up and duo mode. Type `/fm` in game. See its [README](addons/ForeverMetrics/README.md). |
+| [ForeverProfessions](addons/ForeverProfessions) | 0.1.0 | Which recipes use an item (hover, Shift, Alt-click), and every profession across your characters. Type `/fp` in game. See its [README](addons/ForeverProfessions/README.md). |
 
 ## Layout
 
@@ -21,6 +22,7 @@ tools/
   bundle.py              builds the download page's addon list
   stats.py               turns players' saved data into the stats page's data
   icons.py               fetches the WoW icons the stats page uses
+  recipes.py             builds ForeverProfessions' recipe table (Data.lua) from saved data + Wowhead
 dist/                    built zips (not committed)
 ```
 

@@ -204,11 +204,21 @@ local function countBags(bags)
   return items
 end
 
+-- Bags you carry: backpack, the four bag slots, and the reagent bag (its own
+-- slot, 5, on clients that have one). Bank bags come after all of those.
+local function carriedBags()
+  local last = NUM_TOTAL_EQUIPPED_BAG_SLOTS or NUM_BAG_SLOTS or 4
+  local list, seen = {}, {}
+  for b = 0, last do list[#list + 1] = b; seen[b] = true end
+  local reagent = Enum and Enum.BagIndex and Enum.BagIndex.ReagentBag
+  if reagent and not seen[reagent] then list[#list + 1] = reagent end
+  return list, last
+end
+
 local function scanBags()
   local c = FP:Char()
   if not c then return end
-  local bags = {}
-  for b = 0, (NUM_BAG_SLOTS or 4) do bags[#bags + 1] = b end
+  local bags = carriedBags()
   c.bags = { t = time(), items = countBags(bags) }
   FP:Changed()
 end
@@ -217,7 +227,8 @@ local function scanBank()
   local c = FP:Char()
   if not c then return end
   local bags = { BANK_CONTAINER or -1 }
-  local first = (NUM_BAG_SLOTS or 4) + 1
+  local _, last = carriedBags()
+  local first = last + 1
   for b = first, first + (NUM_BANKBAGSLOTS or 6) - 1 do bags[#bags + 1] = b end
   c.bank = { t = time(), items = countBags(bags) }
   FP:Changed()

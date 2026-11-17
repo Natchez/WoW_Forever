@@ -1,4 +1,4 @@
-# Forever Professions (v0.1.1)
+# Forever Professions (v0.1.2)
 
 Shows which recipes use an item, and every profession across all your characters. Type `/fp` in game.
 
@@ -24,7 +24,7 @@ Options > Tooltips turns each step on or off, and can leave out your other chara
 
 ## Where the data comes from
 - **Recipes and their colours:** read when you open a profession window. Colours are as of that moment, so open the window again after skilling up.
-- **Bags:** whenever they change. **Bank:** when you open it.
+- **Bags** (including the reagent bag): whenever they change. **Bank:** when you open it.
 - **Trainers:** whatever a profession trainer lists when you talk to it. Forever Metrics' trainer lists are added at every login.
 - **Other characters** update when you log in on them.
 - **Materials of recipes you don't know** come from a recipe table built from Wowhead's Classic data (`Data.lua`, made by `tools/recipes.py`). Some Forever-only recipes aren't on Wowhead. Their materials fill in once any of your characters learns them.

@@ -43,9 +43,9 @@ function FP:EntryNote(e, item)
   elseif e.missing and e.missing[1] then
     local m = e.missing[1]
     if m.id == item then
-      fact = MUTED .. "need " .. e.need .. (#e.missing > 1 and (" & " .. (#e.missing - 1) .. " more") or "") .. "|r"
+      fact = MUTED .. "need " .. e.need .. (#e.missing > 1 and (" +" .. (#e.missing - 1)) or "") .. "|r"
     else
-      fact = MUTED .. "needs " .. self:ItemName(m.id) .. (#e.missing > 1 and (" & " .. (#e.missing - 1) .. " more") or "") .. "|r"
+      fact = MUTED .. "needs " .. self:ItemName(m.id) .. (#e.missing > 1 and (" +" .. (#e.missing - 1)) or "") .. "|r"
     end
   end
   if who and fact then return who .. MUTED .. "  ·  |r" .. fact end

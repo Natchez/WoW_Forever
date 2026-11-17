@@ -895,3 +895,64 @@ function FP:ShowUses(item, keepPos)
   if not keepPos then f.scroll:SetVerticalScroll(0) end
   f:Show()
 end
+
+---------------------------------------------------------------------------
+-- A "/fp" button just outside the right edge of the profession window
+-- (modern Professions window, or Classic's trade skill and craft windows),
+-- opening the Recipes page on the profession that's open.
+---------------------------------------------------------------------------
+
+local function openProfession()
+  local prof = FP.lastProf
+  local T = C_TradeSkillUI
+  if T and T.GetBaseProfessionInfo then
+    local ok, info = pcall(T.GetBaseProfessionInfo)
+    local n = ok and type(info) == "table" and FP.safe(info.professionName)
+    if n and n ~= "" then prof = n end
+  end
+  if GetTradeSkillLine and _G.TradeSkillFrame and _G.TradeSkillFrame:IsShown() then
+    local n = FP.safe((GetTradeSkillLine()))
+    if n and n ~= "" and n ~= "UNKNOWN" then prof = n end
+  end
+  if GetCraftDisplaySkillLine and _G.CraftFrame and _G.CraftFrame:IsShown() then
+    local n = FP.safe((GetCraftDisplaySkillLine()))
+    if n and n ~= "" then prof = n end
+  end
+  if prof then FP:OpenPair(FP:CharKey(), prof) else FP:OpenAt("recipes") end
+end
+
+local function attachButton(frame)
+  if not frame or frame.__fpButton then return end
+  local b = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
+  b:SetSize(46, 24)
+  b:SetPoint("TOPLEFT", frame, "TOPRIGHT", 2, -30)
+  b:SetText("/fp")
+  b:SetScript("OnClick", function() FP:Try("profession button", openProfession) end)
+  b:SetScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+    GameTooltip:SetText("Forever Professions")
+    GameTooltip:AddLine("Open this profession's recipes: skill-ups, what you can make, and what to learn.", 1, 1, 1, true)
+    GameTooltip:Show()
+  end)
+  b:SetScript("OnLeave", function() GameTooltip:Hide() end)
+  frame.__fpButton = b
+  if not FP:GetSetting("profButton") then b:Hide() end
+end
+
+local function attachAll()
+  for _, name in ipairs({ "ProfessionsFrame", "TradeSkillFrame", "CraftFrame" }) do
+    if _G[name] then FP:Try("profession button", attachButton, _G[name]) end
+  end
+end
+
+FP:On("TRADE_SKILL_SHOW", attachAll)
+FP:On("CRAFT_SHOW", attachAll)
+FP:On("ADDON_LOADED", function(name)
+  if name == "Blizzard_Professions" or name == "Blizzard_TradeSkillUI" or name == "Blizzard_CraftUI" then attachAll() end
+end)
+FP:OnSetting("profButton", function(on)
+  for _, name in ipairs({ "ProfessionsFrame", "TradeSkillFrame", "CraftFrame" }) do
+    local f = _G[name]
+    if f and f.__fpButton then if on then f.__fpButton:Show() else f.__fpButton:Hide() end end
+  end
+end)

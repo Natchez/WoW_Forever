@@ -1,4 +1,4 @@
-# Forever Professions (v0.1.4)
+# Forever Professions (v0.1.5)
 
 Shows which recipes use an item, and every profession across all your characters. Type `/fp` in game.
 
@@ -20,6 +20,7 @@ Options > Tooltips turns each step on or off, and can leave out your other chara
 - **Overview:** a card for each character's professions: skill, how many recipes you can craft now, what a trainer would teach you now and what it costs, and the best skill-up recipe. Tabs switch between all characters and one.
 - **Recipes:** one profession at a time (`<` and `>` switch), grouped by colour. Filters: Skill-ups, Can make, Learnable, All. Search by recipe or material name. Pick a recipe to see its materials, how many you have, and which other character has what you're missing. **Link in chat** posts it.
 - `/fp copper bar` opens Recipes searching for "copper bar".
+- A **/fp** button sits just outside the right edge of your profession window and opens Recipes on that profession (turn it off under Options > Tooltips).
 - Controller: LB/RB switch character (Overview) or profession (Recipes), D-pad up/down moves, A enters, B backs out, X changes the filter. You can also bind a key or button to "Open / close Forever Professions".
 
 ## Where the data comes from

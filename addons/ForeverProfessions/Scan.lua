@@ -127,6 +127,7 @@ local function saveRecipes(prof, rank, max, list)
   c.prof[prof] = P
   P.rank, P.max, P.scanned = rank or P.rank, max or P.max, time()
   P.recipes = list
+  FP.lastProf = prof
   c.skills[prof] = { rank = P.rank, max = P.max }
   local shared = FP:DB().recipes
   for _, r in pairs(list) do

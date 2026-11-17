@@ -66,20 +66,62 @@ local function recipeLeft(e)
   return sq .. "|cff" .. col .. (e.n or "?") .. "|r " .. MUTED .. "×" .. (e.need or 1) .. "|r"
 end
 
+-- Crafting materials (and anything a recipe uses) get the "On hand" counts;
+-- gear and the like don't, to keep tooltips quiet
+local function isMaterial(item, u)
+  if u and (u.known + u.learn) > 0 then return true end
+  local f = (C_Item and C_Item.GetItemInfoInstant) or GetItemInfoInstant
+  if not f then return false end
+  local ok, _, _, _, _, _, classID = pcall(f, item)
+  classID = ok and safe(classID) or nil
+  return classID == 5 or classID == 7 -- Reagent, Trade Goods
+end
+
+-- "On hand: Gene 41 · Ollie 12 · Bobb 3"
+local function holdersLine(holders)
+  local parts, total = {}, 0
+  for i, h in ipairs(holders) do
+    total = total + h.total
+    if i <= 4 then parts[#parts + 1] = FP:CharName(h.key, true) .. " " .. h.total end
+  end
+  if #holders > 4 then parts[#parts + 1] = MUTED .. "+" .. (#holders - 4) .. "|r" end
+  local line = GOLD .. "On hand:|r " .. table.concat(parts, MUTED .. "  ·  |r")
+  if #holders > 1 then line = line .. MUTED .. "  (" .. total .. ")|r" end
+  return line
+end
+
 local function annotate(tip, item)
   if tip.__fpDone or not item then return end
   local shift = IsShiftKeyDown() and FP:GetSetting("tipShift")
-  if not shift and not FP:GetSetting("tipLine") then return end
+  if not shift and not FP:GetSetting("tipLine") and not FP:GetSetting("tipCounts") then return end
   local u = FP:Uses(item)
-  if not u or (u.known + u.learn) == 0 then return end
+  local hasUses = u and (u.known + u.learn) > 0
+  local holders = FP:GetSetting("tipCounts") and isMaterial(item, u) and FP:Holders(item) or {}
+  if not hasUses and #holders == 0 then return end
   tip.__fpDone, tip.__fpItem = true, item
 
   if not shift then
-    tip:AddLine(summaryLine(u))
-    if FP:GetSetting("tipHint") and FP:GetSetting("tipShift") then tip:AddLine(FAINT .. "Shift: details|r") end
+    if #holders > 0 then tip:AddLine(holdersLine(holders)) end
+    if hasUses and FP:GetSetting("tipLine") then tip:AddLine(summaryLine(u)) end
+    if FP:GetSetting("tipHint") and FP:GetSetting("tipShift") and (hasUses or #holders > 0) then
+      tip:AddLine(FAINT .. "Shift: details|r")
+    end
     tip:Show()
     return
   end
+
+  -- Shift: who has it, split by bags and bank
+  if #holders > 0 then
+    tip:AddLine(" ")
+    tip:AddLine(GOLD .. "On hand|r")
+    for _, h in ipairs(holders) do
+      local where = {}
+      if h.bags > 0 then where[#where + 1] = h.bags .. " bags" end
+      if h.bank > 0 then where[#where + 1] = h.bank .. " bank" end
+      tip:AddDoubleLine("  " .. FP:CharName(h.key), h.total .. MUTED .. "  (" .. table.concat(where, ", ") .. ")|r", 1, 1, 1, 1, 1, 1)
+    end
+  end
+  if not hasUses then tip:Show(); return end
 
   tip:AddLine(" ")
   local shown, grey = 0, FP:GetSetting("tipGrey")

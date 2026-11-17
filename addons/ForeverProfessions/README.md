@@ -1,4 +1,4 @@
-# Forever Professions (v0.1.3)
+# Forever Professions (v0.1.4)
 
 Shows which recipes use an item, and every profession across all your characters. Type `/fp` in game.
 
@@ -10,8 +10,8 @@ Shows which recipes use an item, and every profession across all your characters
 ## Item tooltips, a step at a time
 Items no recipe uses get nothing. For the rest:
 
-- **Hover:** one line, like `Crafting: 2 skill-ups · 17 recipes`.
-- **Hold Shift:** the top 3 recipes, each with its icon. Skill-ups you can make right now come first, then skill-ups you're short of materials for, then anything else you can make. Each row says which character knows it and either how many you can make, which other character has the material, or what's missing. Then a line like `+ 14 more · 1 to learn at trainer`.
+- **Hover:** who has it, like `On hand: Gene 41 · Ollie 12 · Bobb 3 (56)` (this character first, bags and bank together), then `Crafting: 2 skill-ups · 17 recipes`. "On hand" shows on crafting materials and anything a recipe uses, not on gear.
+- **Hold Shift:** each character's count split into bags and bank, then the top 3 recipes, each with its icon. Skill-ups you can make right now come first, then skill-ups you're short of materials for, then anything else you can make. Each row says which character knows it and either how many you can make, which other character has the material, or what's missing. Then a line like `+ 14 more · 1 to learn at trainer`.
 - **Alt-click the item** (in your bags, the bank, or a chat link): a panel with every recipe that uses it, grouped into Skill-ups, Can make, Other recipes and Learn at trainer. Click a recipe to open it in the Recipes page.
 
 Options > Tooltips turns each step on or off, and can leave out your other characters or grey recipes.

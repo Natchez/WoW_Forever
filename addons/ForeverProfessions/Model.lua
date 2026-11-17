@@ -101,6 +101,23 @@ function FP:Missing(key, reagents)
   return out
 end
 
+-- Every character holding an item: { {key, bags, bank, total}, ... },
+-- this character first, then most first
+function FP:Holders(id)
+  local out, me = {}, self:CharKey()
+  for key, c in pairs(self:DB().chars) do
+    local bags = c.bags and c.bags.items and c.bags.items[id] or 0
+    local bank = c.bank and c.bank.items and c.bank.items[id] or 0
+    if bags + bank > 0 then out[#out + 1] = { key = key, bags = bags, bank = bank, total = bags + bank } end
+  end
+  table.sort(out, function(a, b)
+    if (a.key == me) ~= (b.key == me) then return a.key == me end
+    if a.total ~= b.total then return a.total > b.total end
+    return a.key < b.key
+  end)
+  return out
+end
+
 -- Another character holding at least `need` of an item (or nil)
 function FP:WhoHas(id, need, notKey)
   local best, bestN

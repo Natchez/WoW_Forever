@@ -99,6 +99,15 @@ def collect(paths):
                 for r in as_dict(as_dict(T).get("recipes")).values():
                     r = as_dict(r)
                     note(r.get("spell"), prof, r.get("n"), r.get("skill"))
+            # ForeverProfessions keeps every recipe's materials it has seen, by spell ID
+            for spell, r in as_dict(db.get("recipes")).items() if db.get("version") and "trainers" in db else []:
+                r = as_dict(r)
+                regs = [[as_dict(x).get("id"), as_dict(x).get("c", 1)] for x in as_list(r.get("r"))]
+                regs = [x for x in regs if x[0]]
+                try:
+                    note(int(spell), r.get("p"), r.get("n"), None, r.get("i"), regs or None)
+                except (TypeError, ValueError):
+                    pass
             for c in as_dict(db.get("chars")).values():
                 for prof, P in as_dict(as_dict(c).get("prof")).items():
                     if not prof:

@@ -1,6 +1,7 @@
 -- Forever Metrics: zone levels on the world map
 -- Hover a zone on a continent map (or open a zone's map) and its level range
--- shows at the top of the map, like "Westfall  10-20", coloured against your
+-- shows at the top of the map, under Blizzard's own zone name label, like
+-- "Levels 10-20", coloured against your
 -- level the way quests are: red/orange too high, yellow about right, green
 -- easy, grey no XP to speak of.
 -- Ranges come from the game (C_Map.GetMapLevels) when it has them, otherwise
@@ -82,7 +83,8 @@ local function update()
   if target then
     local lo, hi = levels(target.mapID, target.name)
     if lo then
-      text = ("%s  |cff%s%d-%d|r"):format(target.name, color(lo, hi), lo, hi)
+      -- Blizzard's label above already names the zone
+      text = ("|cff%sLevels %d-%d|r"):format(color(lo, hi), lo, hi)
     end
   end
   if text ~= lastText then
@@ -97,9 +99,11 @@ local function build()
   local parent = map.ScrollContainer or map
   label = CreateFrame("Frame", nil, parent)
   label:SetSize(400, 30)
-  label:SetPoint("TOP", parent, "TOP", 0, -12)
-  label:SetFrameLevel((parent:GetFrameLevel() or 1) + 50)
-  label.text = label:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+  -- just below Blizzard's zone name label, and drawn above every map layer
+  label:SetPoint("TOP", parent, "TOP", 0, -46)
+  label:SetFrameStrata(map:GetFrameStrata() or "HIGH")
+  label:SetFrameLevel((map:GetFrameLevel() or 1) + 500)
+  label.text = label:CreateFontString(nil, "OVERLAY", "GameFontNormal")
   label.text:SetPoint("CENTER")
   label.text:SetShadowOffset(1, -1)
   label:Hide()

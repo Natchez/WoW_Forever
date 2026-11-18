@@ -2,7 +2,7 @@
 ## Title: Forever Metrics
 ## Notes: RuneMetrics-style stats, activity log and gathering tracker across all your characters. /fm
 ## Author: You
-## Version: 0.16.8
+## Version: 0.16.10
 ## SavedVariables: ForeverMetricsDB
 
 Core.lua
@@ -13,6 +13,7 @@ Duo.lua
 Tooltip.lua
 QoL.lua
 Mail.lua
+ThreatProbe.lua
 LevelUp.lua
 Professions.lua
 FCT.lua

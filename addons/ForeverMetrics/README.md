@@ -1,4 +1,4 @@
-# Forever Metrics (v0.16.8)
+# Forever Metrics (v0.16.10)
 
 A RuneMetrics-style tracker for World of Warcraft: Forever. It keeps an activity feed and stats for every character, and you can swap between characters or view totals for your whole account.
 
@@ -17,6 +17,7 @@ A RuneMetrics-style tracker for World of Warcraft: Forever. It keeps an activity
 - `/fm feed lines 5`, `/fm feed hold 60`, `/fm feed scale 1.2` set how many lines stay on screen together, how many seconds the feed stays after the last new entry before fading out, and its size
 - `/fm feed test` shows a sample entry and prints whether the feed is on, visible, and on screen. `/fm feed reset` puts it back in its default spot.
 - `/fm move` unlocks the feed for dragging without Edit Mode (run it again to lock)
+- `/fm threat test` (temporary, v0.16.9) prints what the game's threat functions return for your target, for you, your pet and your party, and marks any value the game hides from addons as SECRET. `/fm threat watch` (from v0.16.10) puts one compact line in the on-screen feed whenever threat changes while you fight, like `[T] Kolkar Wrangler: Kil'hala 100% tank · You 72% · Lindabelcher secret`, and a count of threat events after each fight. These lines aren't saved to your activity history. With the feed turned off they go to chat. This is to check whether a threat meter can work on Forever.
 
 ## The window (redesigned in v0.9.0)
 `/fm` opens a larger window with a side menu on the left. Some sections have tabs along the top.
@@ -40,7 +41,7 @@ A RuneMetrics-style tracker for World of Warcraft: Forever. It keeps an activity
   - **Chat**
   - **Quality of Life**
 
-The window title shows the installed version, like "Forever Metrics v0.16.8", and so does the "loaded" line in chat at login.
+The window title shows the installed version, like "Forever Metrics v0.16.10", and so does the "loaded" line in chat at login.
 
 `<` and `>` at the top right switch characters (including "All Characters") on pages that show one character's data. `/fm settings` opens straight to the Options pages.
 

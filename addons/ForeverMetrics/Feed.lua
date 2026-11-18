@@ -24,6 +24,7 @@ local KIND_ICON = {
   skill = "|cff69ccf0[S]|r", death = "|cffff5555[X]|r", zone = "|cffaaaaaa[Z]|r",
   gather = "|cffc79c6e[G]|r", duo = "|cffff7eb6[D]|r",
   xp = "|cffd9a6ff[XP]|r", money = "|cffffd700[$]|r", rep = "|cff6fa8ff[R]|r",
+  threat = "|cffff6b5a[T]|r",
 }
 
 local LINE_H = 16

@@ -688,6 +688,8 @@ SlashCmdList.FOREVERMETRICS = function(arg)
     if FM.FCTCommand then FM:FCTCommand(rest) end
   elseif cmd == "ap" then
     if FM.APCommand then FM:APCommand(rest) end
+  elseif cmd == "threat" then
+    if FM.ThreatCommand then FM:ThreatCommand(rest) end
   elseif cmd == "feed" then
     if FM.FeedCommand then FM:FeedCommand(rest) end
   elseif cmd == "move" then

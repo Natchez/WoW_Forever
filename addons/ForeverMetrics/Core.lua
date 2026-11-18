@@ -251,6 +251,7 @@ FM.SETTINGS = {
   { group = "qol",     key = "autoRepair",     label = "Repair gear at vendors",                default = false },
   { group = "qol",     key = "fastLoot",       label = "Faster auto loot",                      default = false },
   { group = "qol",     key = "declineDuels",   label = "Decline duel requests",                 default = false },
+  { group = "qol",     key = "mailContacts",   label = "Mail contacts beside Send Mail (recent, friends, alts)", default = true },
 }
 local settingHooks = {}
 

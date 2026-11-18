@@ -34,7 +34,7 @@ local function sectionIndex(key) for i, s in ipairs(SECTIONS) do if s.key == key
 
 local function colored(e)
   if e.kind == "learn" then return GOLD .. (e.n or "?") .. "|r" end
-  return "|cff" .. (FP.DIFF_COLOR[e.diff or 3] or "ffffff") .. (e.n or "?") .. "|r"
+  return "|cff" .. (e.diff and FP.DIFF_COLOR[e.diff] or "ffffff") .. (e.n or "?") .. "|r"
 end
 
 local function newButton(parent, label, w, h)
@@ -288,7 +288,7 @@ local function recipeRows()
   local rows, lastGroup = {}, nil
   for _, e in ipairs(FP:RecipeList(pr.key, pr.prof)) do
     if passes(e, ui.filter) and matchesSearch(e, q) then
-      local g = e.kind == "learn" and "Learn at trainer" or DIFF_GROUP[e.diff or 3]
+      local g = e.kind == "learn" and "Learn at trainer" or (e.diff and DIFF_GROUP[e.diff]) or "Just learned  ·  open the window for colours"
       if g ~= lastGroup then rows[#rows + 1] = { header = g }; lastGroup = g end
       rows[#rows + 1] = e
     end
@@ -426,13 +426,15 @@ local function fillDetail(e, pr)
   if e.kind == "learn" then
     d.sub:SetText(pr.prof .. MUTED .. "  ·  learn at a trainer: " .. FP:Money(e.cost or 0) .. ", needs skill " .. (e.skill or "?") .. "|r")
   else
-    d.sub:SetText(pr.prof .. MUTED .. "  ·  |r|cff" .. FP.DIFF_COLOR[e.diff or 3] .. (FP.DIFF_LABEL[e.diff or 3] or "") .. "|r")
+    d.sub:SetText(pr.prof .. MUTED .. "  ·  |r" .. (e.diff and ("|cff" .. FP.DIFF_COLOR[e.diff] .. FP.DIFF_LABEL[e.diff] .. "|r")
+      or (MUTED .. "just learned: open your " .. pr.prof .. " window to see its colour|r")))
   end
   local regs = e.reagents or {}
   for i, g in ipairs(regs) do
     local m = getMat(i)
     m.icon:SetTexture(FP:ItemIcon(g.id))
-    m.name:SetText(FP:ItemName(g.id) .. MUTED .. "  ×" .. g.c .. "|r")
+    local p = FP:Price(g.id)
+    m.name:SetText(FP:ItemName(g.id) .. MUTED .. "  ×" .. g.c .. (p and ("  ·  " .. FP:Money(p * g.c)) or "") .. "|r")
     local have = FP:Have(pr.key, g.id)
     if have >= g.c then
       m.have:SetText(GREEN .. "have " .. have .. "|r")
@@ -444,6 +446,25 @@ local function fillDetail(e, pr)
   end
   d.summary:ClearAllPoints()
   d.summary:SetPoint("TOPLEFT", 14, -110 - #regs * 26); d.summary:SetPoint("RIGHT", -14, 0)
+  -- AH: what the materials cost, what the item sells for, and the difference
+  local money = ""
+  if #regs > 0 then
+    local cost, unpriced = FP:MaterialsCost(regs)
+    local sells = e.made and FP:Price(e.made)
+    local parts = {}
+    if unpriced < #regs then
+      parts[#parts + 1] = "Materials " .. FP:Money(cost) .. (unpriced > 0 and (MUTED .. " (" .. unpriced .. " not priced)|r") or "")
+    end
+    if sells then parts[#parts + 1] = "Sells for " .. FP:Money(sells) end
+    if sells and unpriced == 0 then
+      local diff = sells - cost
+      parts[#parts + 1] = (diff >= 0 and (GREEN .. "Profit |r") or (RED .. "Loss |r")) .. FP:Money(math.abs(diff))
+    end
+    if #parts > 0 then money = "\n\n" .. table.concat(parts, MUTED .. "   ·   |r") end
+    if #parts == 0 and FP:GetSetting("tipPrice") then
+      money = "\n\n" .. FAINT .. "No AH prices yet: click Price materials beside the auction house window.|r"
+    end
+  end
   if #regs == 0 then
     d.summary:SetText(MUTED .. "Materials not known yet. They fill in once any of your characters learns this recipe.|r")
   elseif e.kind == "learn" then
@@ -452,6 +473,7 @@ local function fillDetail(e, pr)
     local can = FP:CanMake(pr.key, regs)
     d.summary:SetText(can > 0 and ("You can make " .. GREEN .. can .. "|r.") or (MUTED .. "You can't make this yet.|r"))
   end
+  if money ~= "" then d.summary:SetText(d.summary:GetText() .. money) end
 end
 
 local function fillRecipes()
@@ -894,3 +916,64 @@ function FP:ShowUses(item, keepPos)
   if not keepPos then f.scroll:SetVerticalScroll(0) end
   f:Show()
 end
+
+---------------------------------------------------------------------------
+-- A "/fp" button just outside the right edge of the profession window
+-- (modern Professions window, or Classic's trade skill and craft windows),
+-- opening the Recipes page on the profession that's open.
+---------------------------------------------------------------------------
+
+local function openProfession()
+  local prof = FP.lastProf
+  local T = C_TradeSkillUI
+  if T and T.GetBaseProfessionInfo then
+    local ok, info = pcall(T.GetBaseProfessionInfo)
+    local n = ok and type(info) == "table" and FP.safe(info.professionName)
+    if n and n ~= "" then prof = n end
+  end
+  if GetTradeSkillLine and _G.TradeSkillFrame and _G.TradeSkillFrame:IsShown() then
+    local n = FP.safe((GetTradeSkillLine()))
+    if n and n ~= "" and n ~= "UNKNOWN" then prof = n end
+  end
+  if GetCraftDisplaySkillLine and _G.CraftFrame and _G.CraftFrame:IsShown() then
+    local n = FP.safe((GetCraftDisplaySkillLine()))
+    if n and n ~= "" then prof = n end
+  end
+  if prof then FP:OpenPair(FP:CharKey(), prof) else FP:OpenAt("recipes") end
+end
+
+local function attachButton(frame)
+  if not frame or frame.__fpButton then return end
+  local b = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
+  b:SetSize(46, 24)
+  b:SetPoint("TOPLEFT", frame, "TOPRIGHT", 2, -30)
+  b:SetText("/fp")
+  b:SetScript("OnClick", function() FP:Try("profession button", openProfession) end)
+  b:SetScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+    GameTooltip:SetText("Forever Professions")
+    GameTooltip:AddLine("Open this profession's recipes: skill-ups, what you can make, and what to learn.", 1, 1, 1, true)
+    GameTooltip:Show()
+  end)
+  b:SetScript("OnLeave", function() GameTooltip:Hide() end)
+  frame.__fpButton = b
+  if not FP:GetSetting("profButton") then b:Hide() end
+end
+
+local function attachAll()
+  for _, name in ipairs({ "ProfessionsFrame", "TradeSkillFrame", "CraftFrame" }) do
+    if _G[name] then FP:Try("profession button", attachButton, _G[name]) end
+  end
+end
+
+FP:On("TRADE_SKILL_SHOW", attachAll)
+FP:On("CRAFT_SHOW", attachAll)
+FP:On("ADDON_LOADED", function(name)
+  if name == "Blizzard_Professions" or name == "Blizzard_TradeSkillUI" or name == "Blizzard_CraftUI" then attachAll() end
+end)
+FP:OnSetting("profButton", function(on)
+  for _, name in ipairs({ "ProfessionsFrame", "TradeSkillFrame", "CraftFrame" }) do
+    local f = _G[name]
+    if f and f.__fpButton then if on then f.__fpButton:Show() else f.__fpButton:Hide() end end
+  end
+end)

@@ -101,6 +101,23 @@ function FP:Missing(key, reagents)
   return out
 end
 
+-- Every character holding an item: { {key, bags, bank, total}, ... },
+-- this character first, then most first
+function FP:Holders(id)
+  local out, me = {}, self:CharKey()
+  for key, c in pairs(self:DB().chars) do
+    local bags = c.bags and c.bags.items and c.bags.items[id] or 0
+    local bank = c.bank and c.bank.items and c.bank.items[id] or 0
+    if bags + bank > 0 then out[#out + 1] = { key = key, bags = bags, bank = bank, total = bags + bank } end
+  end
+  table.sort(out, function(a, b)
+    if (a.key == me) ~= (b.key == me) then return a.key == me end
+    if a.total ~= b.total then return a.total > b.total end
+    return a.key < b.key
+  end)
+  return out
+end
+
 -- Another character holding at least `need` of an item (or nil)
 function FP:WhoHas(id, need, notKey)
   local best, bestN
@@ -130,7 +147,16 @@ local function chars()
   return keys
 end
 
+local RANK_CAP = { Apprentice = 75, Journeyman = 150, Expert = 225, Artisan = 300 }
+
 local function knows(c, prof, spell, name)
+  -- "Journeyman Blacksmithing": trained once your cap has reached it
+  local title = type(name) == "string" and name:match("^(%a+) ")
+  if title and RANK_CAP[title] then
+    local s, P = c.skills and c.skills[prof], c.prof and c.prof[prof]
+    local max = (s and s.max) or (P and P.max) or 0
+    return max >= RANK_CAP[title]
+  end
   local P = c.prof and c.prof[prof]
   if not P or not P.recipes then return false end
   if spell and P.recipes["s" .. spell] then return true end

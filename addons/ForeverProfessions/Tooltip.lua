@@ -53,7 +53,7 @@ function FP:EntryNote(e, item)
 end
 
 local function recipeLeft(e)
-  local col = e.kind == "learn" and "e8c27a" or (FP.DIFF_COLOR[e.diff or 3] or "ffffff")
+  local col = e.kind == "learn" and "e8c27a" or (e.diff and FP.DIFF_COLOR[e.diff] or "ffffff")
   -- the recipe's icon (or the item it makes), trimmed of its border; the
   -- name's colour shows the difficulty. A coloured square if there's no icon.
   local icon = e.icon or (e.made and FP:ItemIcon(e.made))
@@ -66,20 +66,74 @@ local function recipeLeft(e)
   return sq .. "|cff" .. col .. (e.n or "?") .. "|r " .. MUTED .. "×" .. (e.need or 1) .. "|r"
 end
 
+-- Crafting materials (and anything a recipe uses) get the "On hand" counts;
+-- gear and the like don't, to keep tooltips quiet
+local function isMaterial(item, u)
+  if u and (u.known + u.learn) > 0 then return true end
+  local f = (C_Item and C_Item.GetItemInfoInstant) or GetItemInfoInstant
+  if not f then return false end
+  local ok, _, _, _, _, _, classID = pcall(f, item)
+  classID = ok and safe(classID) or nil
+  return classID == 5 or classID == 7 -- Reagent, Trade Goods
+end
+
+-- "On hand: Gene 41 · Ollie 12 · Bobb 3"
+local function holdersLine(holders)
+  local parts, total = {}, 0
+  for i, h in ipairs(holders) do
+    total = total + h.total
+    if i <= 4 then parts[#parts + 1] = FP:CharName(h.key, true) .. " " .. h.total end
+  end
+  if #holders > 4 then parts[#parts + 1] = MUTED .. "+" .. (#holders - 4) .. "|r" end
+  local line = GOLD .. "On hand:|r " .. table.concat(parts, MUTED .. "  ·  |r")
+  if #holders > 1 then line = line .. MUTED .. "  (" .. total .. ")|r" end
+  return line
+end
+
 local function annotate(tip, item)
   if tip.__fpDone or not item then return end
   local shift = IsShiftKeyDown() and FP:GetSetting("tipShift")
-  if not shift and not FP:GetSetting("tipLine") then return end
+  if not shift and not FP:GetSetting("tipLine") and not FP:GetSetting("tipCounts") and not FP:GetSetting("tipPrice") then return end
   local u = FP:Uses(item)
-  if not u or (u.known + u.learn) == 0 then return end
+  local hasUses = u and (u.known + u.learn) > 0
+  local holders = FP:GetSetting("tipCounts") and isMaterial(item, u) and FP:Holders(item) or {}
+  local price, age
+  if FP:GetSetting("tipPrice") then price, age = FP:Price(item) end
+  if not hasUses and #holders == 0 and not price then return end
   tip.__fpDone, tip.__fpItem = true, item
+  local priceLine = price and (GOLD .. "AH:|r " .. FP:Money(price) .. MUTED .. " each  ·  " .. FP:Age(age) .. "|r")
 
   if not shift then
-    tip:AddLine(summaryLine(u))
-    if FP:GetSetting("tipHint") and FP:GetSetting("tipShift") then tip:AddLine(FAINT .. "Shift: details|r") end
+    if priceLine then tip:AddLine(priceLine) end
+    if #holders > 0 then tip:AddLine(holdersLine(holders)) end
+    if hasUses and FP:GetSetting("tipLine") then tip:AddLine(summaryLine(u)) end
+    if FP:GetSetting("tipHint") and FP:GetSetting("tipShift") and (hasUses or #holders > 0) then
+      tip:AddLine(FAINT .. "Shift: details|r")
+    end
     tip:Show()
     return
   end
+
+  -- Shift: the price (and a stack's worth), then who has it, by bags and bank
+  if priceLine then
+    tip:AddLine(" ")
+    tip:AddLine(priceLine)
+    local f = (C_Item and C_Item.GetItemInfo) or GetItemInfo
+    local ok, _, _, _, _, _, _, _, stack = pcall(f, item)
+    stack = ok and tonumber(safe(stack)) or nil
+    if stack and stack > 1 then tip:AddLine(MUTED .. "  a stack of " .. stack .. ": |r" .. FP:Money(price * stack)) end
+  end
+  if #holders > 0 then
+    tip:AddLine(" ")
+    tip:AddLine(GOLD .. "On hand|r")
+    for _, h in ipairs(holders) do
+      local where = {}
+      if h.bags > 0 then where[#where + 1] = h.bags .. " bags" end
+      if h.bank > 0 then where[#where + 1] = h.bank .. " bank" end
+      tip:AddDoubleLine("  " .. FP:CharName(h.key), h.total .. MUTED .. "  (" .. table.concat(where, ", ") .. ")|r", 1, 1, 1, 1, 1, 1)
+    end
+  end
+  if not hasUses then tip:Show(); return end
 
   tip:AddLine(" ")
   local shown, grey = 0, FP:GetSetting("tipGrey")

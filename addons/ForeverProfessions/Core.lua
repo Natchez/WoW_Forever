@@ -99,6 +99,9 @@ end
 ---------------------------------------------------------------------------
 
 FP.SETTINGS = {
+  { group = "tooltip", key = "profButton", label = "Add a /fp button to profession windows", default = true },
+  { group = "tooltip", key = "tipPrice",  label = "Show auction house prices (from your last look at the AH)", default = true },
+  { group = "tooltip", key = "tipCounts", label = "Show how many of a material each character has", default = true },
   { group = "tooltip", key = "tipLine",   label = "Add a Crafting line to item tooltips", default = true },
   { group = "tooltip", key = "tipShift",  label = "Hold Shift for the top recipes",       default = true },
   { group = "tooltip", key = "tipHint",   label = "Show the \"Shift: details\" hint",     default = true },

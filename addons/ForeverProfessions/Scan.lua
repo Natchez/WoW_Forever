@@ -199,6 +199,28 @@ local function scanCrafts()
 end
 
 -- The modern profession window (Forever uses this one)
+-- Materials and made item of one recipe, from the modern recipe schematic
+local function schematic(T, id)
+  local item, regs = nil, {}
+  if not T.GetRecipeSchematic then return item, regs end
+  local ok, sch = pcall(T.GetRecipeSchematic, id, false)
+  if ok and type(sch) == "table" then
+    item = safe(sch.outputItemID)
+    for _, slot in ipairs(sch.reagentSlotSchematics or {}) do
+      local first = slot.reagents and slot.reagents[1]
+      if first and first.itemID then
+        regs[#regs + 1] = { id = first.itemID, c = safe(slot.quantityRequired) or 1 }
+      end
+    end
+  end
+  return item, regs
+end
+
+-- The modern profession window (Forever uses this one). It lists every
+-- recipe in the profession, learned or not: learned ones are this
+-- character's recipes; every recipe's materials go into db.recipes and its
+-- name into db.catalog[profession], shared by all characters, so tooltips
+-- can show recipes nobody has learned yet.
 local function scanModern()
   local T = C_TradeSkillUI
   if not (T and T.GetAllRecipeIDs and T.GetRecipeInfo and T.GetBaseProfessionInfo) then return false end
@@ -206,27 +228,29 @@ local function scanModern()
   if not ok or type(info) ~= "table" then return false end
   local prof = safe(info.professionName)
   if not prof or prof == "" then return false end -- window still loading; TRADE_SKILL_LIST_UPDATE rescans
-  local list, n = {}, 0
+  local db = FP:DB()
+  db.catalog = db.catalog or {}
+  local catalog = db.catalog[prof] or {}
+  db.catalog[prof] = catalog
+  local list, n, unlearned = {}, 0, 0
   for _, id in ipairs(T.GetAllRecipeIDs() or {}) do
     local ok2, r = pcall(T.GetRecipeInfo, id)
-    if ok2 and type(r) == "table" and safe(r.learned) then
-      local rec = { n = safe(r.name), icon = safe(r.icon), spell = id, diff = diffNum(safe(r.relativeDifficulty)), reagents = {} }
-      if T.GetRecipeSchematic then
-        local ok3, sch = pcall(T.GetRecipeSchematic, id, false)
-        if ok3 and type(sch) == "table" then
-          rec.item = safe(sch.outputItemID)
-          for _, slot in ipairs(sch.reagentSlotSchematics or {}) do
-            local first = slot.reagents and slot.reagents[1]
-            if first and first.itemID then
-              rec.reagents[#rec.reagents + 1] = { id = first.itemID, c = safe(slot.quantityRequired) or 1 }
-            end
-          end
-        end
+    if ok2 and type(r) == "table" then
+      local name, icon = safe(r.name), safe(r.icon)
+      local item, regs = schematic(T, id)
+      if name then
+        catalog[id] = { n = name, icon = icon }
+        if #regs > 0 then db.recipes[id] = { n = name, p = prof, i = item, r = regs } end
       end
-      list["s" .. id] = rec
-      n = n + 1
+      if safe(r.learned) then
+        list["s" .. id] = { n = name, icon = icon, spell = id, diff = diffNum(safe(r.relativeDifficulty)), item = item, reagents = regs }
+        n = n + 1
+      else
+        unlearned = unlearned + 1
+      end
     end
   end
+  FP:Debug(("%s window: %d learned, %d not learned yet"):format(prof, n, unlearned))
   if n == 0 then return false end -- an empty list is a window that hasn't filled in yet
   return saveRecipes(prof, safe(info.skillLevel), safe(info.maxSkillLevel), list)
 end

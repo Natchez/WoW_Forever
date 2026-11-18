@@ -26,6 +26,7 @@ local function summaryLine(u)
   if u.skillups > 0 then parts[#parts + 1] = plural(u.skillups, "skill-up") end
   if u.known > 0 then parts[#parts + 1] = plural(u.known, "recipe") end
   if u.known == 0 and u.learn > 0 then parts[#parts + 1] = u.learn .. " to learn" end
+  if u.known == 0 and u.learn == 0 and u.other > 0 then parts[#parts + 1] = plural(u.other, "recipe") .. " not learned yet" end
   return GOLD .. "Crafting:|r " .. table.concat(parts, "  ·  ")
 end
 
@@ -36,6 +37,8 @@ function FP:EntryNote(e, item)
   local fact
   if e.kind == "learn" then
     fact = "learn " .. self:Money(e.cost or 0)
+  elseif e.kind == "other" then
+    fact = MUTED .. "not learned|r"
   elseif (e.canMake or 0) > 0 then
     fact = "|cff7fd36bmake " .. e.canMake .. "|r"
   elseif e.altHas and item then
@@ -53,7 +56,7 @@ function FP:EntryNote(e, item)
 end
 
 local function recipeLeft(e)
-  local col = e.kind == "learn" and "e8c27a" or (e.diff and FP.DIFF_COLOR[e.diff] or "ffffff")
+  local col = (e.kind == "learn" and "e8c27a") or (e.kind == "other" and "a8977a") or (e.diff and FP.DIFF_COLOR[e.diff] or "ffffff")
   -- the recipe's icon (or the item it makes), trimmed of its border; the
   -- name's colour shows the difficulty. A coloured square if there's no icon.
   local icon = e.icon or (e.made and FP:ItemIcon(e.made))
@@ -69,7 +72,7 @@ end
 -- Crafting materials (and anything a recipe uses) get the "On hand" counts;
 -- gear and the like don't, to keep tooltips quiet
 local function isMaterial(item, u)
-  if u and (u.known + u.learn) > 0 then return true end
+  if u and (u.known + u.learn + u.other) > 0 then return true end
   local f = (C_Item and C_Item.GetItemInfoInstant) or GetItemInfoInstant
   if not f then return false end
   local ok, _, _, _, _, _, classID = pcall(f, item)
@@ -95,7 +98,7 @@ local function annotate(tip, item)
   local shift = IsShiftKeyDown() and FP:GetSetting("tipShift")
   if not shift and not FP:GetSetting("tipLine") and not FP:GetSetting("tipCounts") and not FP:GetSetting("tipPrice") then return end
   local u = FP:Uses(item)
-  local hasUses = u and (u.known + u.learn) > 0
+  local hasUses = u and (u.known + u.learn + u.other) > 0
   local holders = FP:GetSetting("tipCounts") and isMaterial(item, u) and FP:Holders(item) or {}
   local price, age
   if FP:GetSetting("tipPrice") then price, age = FP:Price(item) end
@@ -155,6 +158,7 @@ local function annotate(tip, item)
   local tail = {}
   if more > 0 then tail[#tail + 1] = "+ " .. more .. " more" end
   if u.learn > 0 and u.known > 0 then tail[#tail + 1] = u.learn .. " to learn at trainer" end
+  if u.other > 0 and (u.known > 0 or u.learn > 0) then tail[#tail + 1] = u.other .. " not learned yet" end
   if #tail > 0 then tip:AddLine(MUTED .. table.concat(tail, "  ·  ") .. "|r") end
   if FP:GetSetting("altClick") then tip:AddLine(FAINT .. "Alt-click: open in Forever Professions|r") end
   tip:Show()

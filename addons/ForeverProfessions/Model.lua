@@ -172,6 +172,7 @@ end
 -- short for, anything else you can make, the rest, then learnable
 local function useRank(e)
   if e.kind == "learn" then return 9 end
+  if e.kind == "other" then return 10 end
   local skill, can = e.diff and e.diff <= 1, (e.canMake or 0) > 0
   if skill and can then return 0 elseif skill then return 1 elseif can then return 2 end
   return 3
@@ -188,8 +189,10 @@ local function sortUses(a, b)
 end
 
 -- Recipes page order: by colour (the list is grouped by it), then makeable
+local KIND_ORDER = { known = 1, learn = 2, other = 3 }
 local function sortEntries(a, b)
-  if (a.kind == "learn") ~= (b.kind == "learn") then return b.kind == "learn" end
+  local ka, kb = KIND_ORDER[a.kind] or 1, KIND_ORDER[b.kind] or 1
+  if ka ~= kb then return ka < kb end
   local da, db = a.diff or 4, b.diff or 4
   if da ~= db then return da < db end
   local ma, mb = (a.canMake or 0) > 0, (b.canMake or 0) > 0
@@ -203,8 +206,9 @@ function FP:Uses(item)
   if not item then return nil end
   if cache.uses[item] then return cache.uses[item] end
   local db = self:DB()
-  local out = { item = item, list = {}, skillups = 0, known = 0, learn = 0, recipes = 0 }
+  local out = { item = item, list = {}, skillups = 0, known = 0, learn = 0, other = 0, recipes = 0 }
   local distinct = {}
+  local otherSeen = {} -- a not-yet-learned recipe is listed once, not once per character
 
   for _, key in ipairs(chars()) do
     local c = db.chars[key]
@@ -244,6 +248,29 @@ function FP:Uses(item)
                   kind = "learn", key = key, prof = prof, spell = t.spell, n = t.n or R.n, icon = t.icon,
                   made = R.i, need = g.c or 1, cost = t.cost or 0, skill = t.skill, reagents = R.r,
                 }
+                otherSeen[t.spell] = true
+                break
+              end
+            end
+          end
+        end
+      end
+    end
+    -- every other recipe in this character's professions that the profession
+    -- window listed but nobody here knows (taught by a recipe item, a
+    -- higher-rank trainer, a quest...)
+    for prof, P in pairs(c.prof or {}) do
+      if P.recipes then
+        for spell, entry in pairs((db.catalog or {})[prof] or {}) do
+          if not otherSeen[spell] and not distinct[spell] and not knows(c, prof, spell, entry.n) then
+            local R = self:Recipe(spell)
+            for _, g in ipairs(R and R.r or {}) do
+              if g.id == item then
+                otherSeen[spell] = true
+                out.list[#out.list + 1] = {
+                  kind = "other", key = key, prof = prof, spell = spell, n = entry.n or R.n, icon = entry.icon,
+                  made = R.i, need = g.c or 1, reagents = R.r,
+                }
                 break
               end
             end
@@ -256,6 +283,7 @@ function FP:Uses(item)
   local grey = self:GetSetting("tipGrey")
   for _, e in ipairs(out.list) do
     if e.kind == "learn" then out.learn = out.learn + 1
+    elseif e.kind == "other" then out.other = out.other + 1
     elseif grey or e.diff ~= 3 then
       out.known = out.known + 1
       if e.diff and e.diff <= 1 then out.skillups = out.skillups + 1 end
@@ -344,6 +372,17 @@ function FP:RecipeList(key, prof)
         local R = self:Recipe(t.spell) or {}
         list[#list + 1] = { kind = "learn", key = key, prof = prof, spell = t.spell, n = t.n or R.n, icon = t.icon,
                             made = R.i, reagents = R.r or {}, cost = t.cost or 0, skill = t.skill }
+      end
+    end
+    -- the rest of the profession (from the profession window), not learned
+    local listed = {}
+    for _, e in ipairs(list) do if e.spell then listed[e.spell] = true end end
+    for _, t in pairs(T and T.recipes or {}) do if t.spell then listed[t.spell] = true end end
+    for spell, entry in pairs((self:DB().catalog or {})[prof] or {}) do
+      if not listed[spell] and not knows(c, prof, spell, entry.n) then
+        local R = self:Recipe(spell) or {}
+        list[#list + 1] = { kind = "other", key = key, prof = prof, spell = spell, n = entry.n, icon = entry.icon,
+                            made = R.i, reagents = R.r or {} }
       end
     end
   end

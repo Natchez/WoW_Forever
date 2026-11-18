@@ -34,6 +34,7 @@ local function sectionIndex(key) for i, s in ipairs(SECTIONS) do if s.key == key
 
 local function colored(e)
   if e.kind == "learn" then return GOLD .. (e.n or "?") .. "|r" end
+  if e.kind == "other" then return MUTED .. (e.n or "?") .. "|r" end
   return "|cff" .. (e.diff and FP.DIFF_COLOR[e.diff] or "ffffff") .. (e.n or "?") .. "|r"
 end
 
@@ -288,7 +289,7 @@ local function recipeRows()
   local rows, lastGroup = {}, nil
   for _, e in ipairs(FP:RecipeList(pr.key, pr.prof)) do
     if passes(e, ui.filter) and matchesSearch(e, q) then
-      local g = e.kind == "learn" and "Learn at trainer" or (e.diff and DIFF_GROUP[e.diff]) or "Just learned  ·  open the window for colours"
+      local g = (e.kind == "learn" and "Learn at trainer") or (e.kind == "other" and "Not learned yet") or (e.diff and DIFF_GROUP[e.diff]) or "Just learned  ·  open the window for colours"
       if g ~= lastGroup then rows[#rows + 1] = { header = g }; lastGroup = g end
       rows[#rows + 1] = e
     end
@@ -423,7 +424,9 @@ local function fillDetail(e, pr)
   d.empty:Hide(); d.icon:Show(); d.mh:Show(); d.link:Show()
   d.icon:SetTexture(e.icon or (e.made and FP:ItemIcon(e.made)) or 134400)
   d.name:SetText(colored(e))
-  if e.kind == "learn" then
+  if e.kind == "other" then
+    d.sub:SetText(pr.prof .. MUTED .. "  ·  not learned yet: taught by a recipe item, a quest or a later trainer|r")
+  elseif e.kind == "learn" then
     d.sub:SetText(pr.prof .. MUTED .. "  ·  learn at a trainer: " .. FP:Money(e.cost or 0) .. ", needs skill " .. (e.skill or "?") .. "|r")
   else
     d.sub:SetText(pr.prof .. MUTED .. "  ·  |r" .. (e.diff and ("|cff" .. FP.DIFF_COLOR[e.diff] .. FP.DIFF_LABEL[e.diff] .. "|r")
@@ -467,7 +470,7 @@ local function fillDetail(e, pr)
   end
   if #regs == 0 then
     d.summary:SetText(MUTED .. "Materials not known yet. They fill in once any of your characters learns this recipe.|r")
-  elseif e.kind == "learn" then
+  elseif e.kind == "learn" or e.kind == "other" then
     d.summary:SetText(MUTED .. "Learn it, then you could make " .. FP:CanMake(pr.key, regs) .. " with what you have.|r")
   else
     local can = FP:CanMake(pr.key, regs)
@@ -512,6 +515,7 @@ local function fillRecipes()
       r.icon:SetTexture(e.icon or (e.made and FP:ItemIcon(e.made)) or 134400)
       r.name:SetText(colored(e))
       if e.kind == "learn" then r.note:SetText(FP:Money(e.cost or 0))
+      elseif e.kind == "other" then r.note:SetText("")
       elseif (e.canMake or 0) > 0 then r.note:SetText(GREEN .. "make " .. e.canMake .. "|r")
       elseif #(e.missing or {}) > 0 then r.note:SetText(MUTED .. #e.missing .. " missing|r")
       else r.note:SetText("") end
@@ -887,9 +891,9 @@ function FP:ShowUses(item, keepPos)
   f.icon:SetTexture(self:ItemIcon(item))
   local total = #u.list
   f.title:SetText(GOLD .. self:ItemName(item) .. "|r  " .. MUTED .. "·  " .. total .. (total == 1 and " recipe" or " recipes") .. "|r")
-  local groups = { { "Skill-ups", {} }, { "Can make", {} }, { "Other recipes", {} }, { "Learn at trainer", {} } }
+  local groups = { { "Skill-ups", {} }, { "Can make", {} }, { "Other recipes", {} }, { "Learn at trainer", {} }, { "Not learned yet", {} } }
   for _, e in ipairs(u.list) do
-    local g = e.kind == "learn" and 4 or ((e.diff and e.diff <= 1) and 1 or ((e.canMake or 0) > 0 and 2 or 3))
+    local g = (e.kind == "other" and 5) or e.kind == "learn" and 4 or ((e.diff and e.diff <= 1) and 1 or ((e.canMake or 0) > 0 and 2 or 3))
     table.insert(groups[g][2], e)
   end
   local i = 0

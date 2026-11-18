@@ -20,7 +20,7 @@ local FRESH = 15 * 60 -- within this, a scan keeps the lowest price it sees
 local function bucket()
   local db = FP:DB()
   db.prices = db.prices or {}
-  local key = (safe(GetRealmName()) or "?") .. "-" .. (safe(UnitFactionGroup("player")) or "?")
+  local key = (safe(GetRealmName()) or "?") .. "-" .. ((UnitFactionGroup and safe(UnitFactionGroup("player"))) or "?")
   db.prices[key] = db.prices[key] or {}
   return db.prices[key]
 end

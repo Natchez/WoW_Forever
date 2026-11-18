@@ -392,7 +392,7 @@ local NOTES = {
   tooltip = "Uses base ratios before talents and buffs. Conditional AP (vs Undead, feral forms) is skipped.",
   chat    = "The background option uses WoW's own chat opacity setting, so turning it off restores what you had. Hidden buttons stay hidden even when chat fades in on hover; the tabs always stay.",
   threat  = "Shows in combat with a hostile target: you, your pet and your party, highest threat first. A gold edge marks who has aggro; [T] and [H] mark the group's tank and healer when roles are set. The warning shows as a banner and a [T] line in the feed, once each time you climb past it.",
-  qol     = "All off by default except mail contacts. Faster auto loot follows your Auto Loot game setting. Mail contacts: click a name to fill in To:, right-click a recent name to forget it.",
+  qol     = "All off by default except mail contacts and zone levels. Faster auto loot follows your Auto Loot game setting. Mail contacts: click a name to fill in To:, right-click a recent name to forget it.",
 }
 
 local function buildSections()

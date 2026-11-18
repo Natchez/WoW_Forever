@@ -1,4 +1,4 @@
-# Forever Metrics (v0.17.0)
+# Forever Metrics (v0.17.1)
 
 A RuneMetrics-style tracker for World of Warcraft: Forever. It keeps an activity feed and stats for every character, and you can swap between characters or view totals for your whole account.
 
@@ -41,7 +41,7 @@ A RuneMetrics-style tracker for World of Warcraft: Forever. It keeps an activity
   - **Chat**
   - **Quality of Life**
 
-The window title shows the installed version, like "Forever Metrics v0.17.0", and so does the "loaded" line in chat at login.
+The window title shows the installed version, like "Forever Metrics v0.17.1", and so does the "loaded" line in chat at login.
 
 `<` and `>` at the top right switch characters (including "All Characters") on pages that show one character's data. `/fm settings` opens straight to the Options pages.
 
@@ -143,7 +143,8 @@ A small list of threat on your target, shown in combat with a hostile target and
 - `/fm threat test` and `/fm threat watch` still print the raw numbers, for checking.
 
 ## Quality of Life (new in v0.7.0)
-These Leatrix-style toggles are all off by default, except mail contacts. Find them under Options > Quality of Life.
+These Leatrix-style toggles are all off by default, except mail contacts and zone levels.
+- **Zone levels on the world map (new in v0.17.1, on by default):** hover a zone on a continent map, or open a zone's map, and its level range shows at the top, like "Westfall 10-20". The range is coloured against your level the way quests are: red or orange too high, yellow about right, green easy, grey far below. It uses the game's own zone levels when it has them, otherwise the standard Classic ranges, which Forever may have changed in places. Find them under Options > Quality of Life.
 - **Mail contacts (new in v0.16.7, on by default):** a list beside the Send Mail tab with the people you've mailed recently, everyone on your friends list (offline friends too, greyed; the game's own name suggestions only offer online ones), and your other characters on this realm. Click a name to fill in "To:". Right-click a recent name to forget it. Recent names are saved per realm, the last 15.
   - Full names (from v0.16.8): mail needs Forever's first and last name. Your current character's is read at login from your player frame. Any mail that goes through teaches the full name of that alt or friend. A name whose surname isn't known yet has a "…" after it; clicking fills in "First " so you can type the surname, and it's remembered from then on.
 - **Sell grey items at vendors:** sells your junk when you open a merchant and tells you what it earned.

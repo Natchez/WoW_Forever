@@ -433,7 +433,8 @@ local function fillDetail(e, pr)
   for i, g in ipairs(regs) do
     local m = getMat(i)
     m.icon:SetTexture(FP:ItemIcon(g.id))
-    m.name:SetText(FP:ItemName(g.id) .. MUTED .. "  ×" .. g.c .. "|r")
+    local p = FP:Price(g.id)
+    m.name:SetText(FP:ItemName(g.id) .. MUTED .. "  ×" .. g.c .. (p and ("  ·  " .. FP:Money(p * g.c)) or "") .. "|r")
     local have = FP:Have(pr.key, g.id)
     if have >= g.c then
       m.have:SetText(GREEN .. "have " .. have .. "|r")
@@ -445,6 +446,25 @@ local function fillDetail(e, pr)
   end
   d.summary:ClearAllPoints()
   d.summary:SetPoint("TOPLEFT", 14, -110 - #regs * 26); d.summary:SetPoint("RIGHT", -14, 0)
+  -- AH: what the materials cost, what the item sells for, and the difference
+  local money = ""
+  if #regs > 0 then
+    local cost, unpriced = FP:MaterialsCost(regs)
+    local sells = e.made and FP:Price(e.made)
+    local parts = {}
+    if unpriced < #regs then
+      parts[#parts + 1] = "Materials " .. FP:Money(cost) .. (unpriced > 0 and (MUTED .. " (" .. unpriced .. " not priced)|r") or "")
+    end
+    if sells then parts[#parts + 1] = "Sells for " .. FP:Money(sells) end
+    if sells and unpriced == 0 then
+      local diff = sells - cost
+      parts[#parts + 1] = (diff >= 0 and (GREEN .. "Profit |r") or (RED .. "Loss |r")) .. FP:Money(math.abs(diff))
+    end
+    if #parts > 0 then money = "\n\n" .. table.concat(parts, MUTED .. "   ·   |r") end
+    if #parts == 0 and FP:GetSetting("tipPrice") then
+      money = "\n\n" .. FAINT .. "No AH prices yet: click Price materials beside the auction house window.|r"
+    end
+  end
   if #regs == 0 then
     d.summary:SetText(MUTED .. "Materials not known yet. They fill in once any of your characters learns this recipe.|r")
   elseif e.kind == "learn" then
@@ -453,6 +473,7 @@ local function fillDetail(e, pr)
     local can = FP:CanMake(pr.key, regs)
     d.summary:SetText(can > 0 and ("You can make " .. GREEN .. can .. "|r.") or (MUTED .. "You can't make this yet.|r"))
   end
+  if money ~= "" then d.summary:SetText(d.summary:GetText() .. money) end
 end
 
 local function fillRecipes()

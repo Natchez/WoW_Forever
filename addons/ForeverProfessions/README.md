@@ -1,4 +1,4 @@
-# Forever Professions (v0.1.5)
+# Forever Professions (v0.1.6)
 
 Shows which recipes use an item, and every profession across all your characters. Type `/fp` in game.
 
@@ -22,6 +22,13 @@ Options > Tooltips turns each step on or off, and can leave out your other chara
 - `/fp copper bar` opens Recipes searching for "copper bar".
 - A **/fp** button sits just outside the right edge of your profession window and opens Recipes on that profession (turn it off under Options > Tooltips).
 - Controller: LB/RB switch character (Overview) or profession (Recipes), D-pad up/down moves, A enters, B backs out, X changes the filter. You can also bind a key or button to "Open / close Forever Professions".
+
+## Auction house prices (new in v0.1.6)
+- **Getting prices:** at the auction house, click **Price materials** (just outside the right edge of the AH window). It looks up, one at a time, every material your characters' recipes use and every item they make. Click it again to stop. Anything you browse or search at the AH is also recorded as you go.
+- **What's kept:** the lowest buyout per item, saved per realm and faction and shared by all your characters. Prices are only as fresh as your last look, and tooltips say how old they are.
+- **Tooltips:** `AH: 12s 50c each · 2h ago` on hover; Shift adds what a stack is worth.
+- **Recipes page:** each material's cost, then `Materials 12s · Sells for 20s · Profit 8s` (or Loss). Materials with no listings are counted as "not priced", so the total can be low. Vendor-bought materials (Weak Flux, thread) only show an AH price if someone lists them.
+- Options > Tooltips > "Show auction house prices" turns the tooltip line off.
 
 ## Where the data comes from
 - **Recipes and their colours:** read when you open a profession window. Colours are as of that moment, so open the window again after skilling up.

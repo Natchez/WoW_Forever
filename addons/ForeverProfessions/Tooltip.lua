@@ -93,14 +93,18 @@ end
 local function annotate(tip, item)
   if tip.__fpDone or not item then return end
   local shift = IsShiftKeyDown() and FP:GetSetting("tipShift")
-  if not shift and not FP:GetSetting("tipLine") and not FP:GetSetting("tipCounts") then return end
+  if not shift and not FP:GetSetting("tipLine") and not FP:GetSetting("tipCounts") and not FP:GetSetting("tipPrice") then return end
   local u = FP:Uses(item)
   local hasUses = u and (u.known + u.learn) > 0
   local holders = FP:GetSetting("tipCounts") and isMaterial(item, u) and FP:Holders(item) or {}
-  if not hasUses and #holders == 0 then return end
+  local price, age
+  if FP:GetSetting("tipPrice") then price, age = FP:Price(item) end
+  if not hasUses and #holders == 0 and not price then return end
   tip.__fpDone, tip.__fpItem = true, item
+  local priceLine = price and (GOLD .. "AH:|r " .. FP:Money(price) .. MUTED .. " each  ·  " .. FP:Age(age) .. "|r")
 
   if not shift then
+    if priceLine then tip:AddLine(priceLine) end
     if #holders > 0 then tip:AddLine(holdersLine(holders)) end
     if hasUses and FP:GetSetting("tipLine") then tip:AddLine(summaryLine(u)) end
     if FP:GetSetting("tipHint") and FP:GetSetting("tipShift") and (hasUses or #holders > 0) then
@@ -110,7 +114,15 @@ local function annotate(tip, item)
     return
   end
 
-  -- Shift: who has it, split by bags and bank
+  -- Shift: the price (and a stack's worth), then who has it, by bags and bank
+  if priceLine then
+    tip:AddLine(" ")
+    tip:AddLine(priceLine)
+    local f = (C_Item and C_Item.GetItemInfo) or GetItemInfo
+    local ok, _, _, _, _, _, _, _, stack = pcall(f, item)
+    stack = ok and tonumber(safe(stack)) or nil
+    if stack and stack > 1 then tip:AddLine(MUTED .. "  a stack of " .. stack .. ": |r" .. FP:Money(price * stack)) end
+  end
   if #holders > 0 then
     tip:AddLine(" ")
     tip:AddLine(GOLD .. "On hand|r")

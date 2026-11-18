@@ -2,8 +2,9 @@
 -- Finds out what Forever's threat functions give an addon before a threat
 -- meter is built on them, since the combat log is blocked here.
 --   /fm threat test    one snapshot for your target, printed in chat
---   /fm threat watch   a snapshot every 2 seconds while you're in combat,
---                      plus a count of threat events, until the fight ends
+--   /fm threat watch   while you fight, one compact line in the on-screen feed
+--                      whenever threat changes ("Kil'hala 100% tank · You
+--                      72%"), and a count of threat events after each fight
 -- For each of you, your pet, and your party (and their pets): the result of
 -- UnitThreatSituation and UnitDetailedThreatSituation against your target,
 -- and whether each value is a "secret" the addon can't read.
@@ -50,7 +51,39 @@ local function snapshot()
   end
 end
 
--- Watching: snapshots during combat and a count of each threat event
+-- One line for the feed: "Kolkar Wrangler: Kil'hala 100% tank · You 72%"
+local function compact()
+  local mob = "target"
+  if not UnitExists(mob) then return nil end
+  local parts = {}
+  for _, u in ipairs(units()) do
+    if UnitExists(u) and pcall(UnitDetailedThreatSituation or error, u, mob) then
+      local _, tanking, _, scaled = pcall(UnitDetailedThreatSituation, u, mob)
+      local name = u == "player" and "You" or UnitName(u)
+      name = isSecret(name) and u or (name or u)
+      local pct
+      if isSecret(scaled) then pct = "|cffff6b6bsecret|r"
+      elseif scaled then pct = ("%d%%"):format(math.floor(scaled + 0.5))
+      else pct = "-" end
+      local tank = (not isSecret(tanking) and tanking) and " |cffe8c27atank|r" or ""
+      parts[#parts + 1] = name .. " " .. pct .. tank
+    end
+  end
+  if #parts == 0 then return nil end
+  local mobName = UnitName(mob)
+  return (isSecret(mobName) and "target" or (mobName or "target")) .. ": " .. table.concat(parts, "  ·  ")
+end
+
+-- Feed, or chat if the feed is turned off
+local function post(text)
+  if FM.OnNewEntry and FM:GetSetting("feed") then
+    FM:OnNewEntry({ t = time(), k = "threat", x = text }) -- shown only, not saved to the history
+  else
+    say(text)
+  end
+end
+
+-- Watching: compact lines during combat and a count of each threat event
 local watch = { on = false, counts = {} }
 local ev = CreateFrame("Frame")
 ev:SetScript("OnEvent", function(_, event, unit)
@@ -58,8 +91,8 @@ ev:SetScript("OnEvent", function(_, event, unit)
   if event == "PLAYER_REGEN_ENABLED" then
     local parts = {}
     for e, n in pairs(watch.counts) do parts[#parts + 1] = e .. " " .. n end
-    say("fight over. Events seen: " .. (#parts > 0 and table.concat(parts, ", ") or "none") .. ". Still watching; /fm threat watch to stop.")
-    watch.counts = {}
+    post("fight over. Threat events: " .. (#parts > 0 and table.concat(parts, ", ") or "none"))
+    watch.counts, watch.last = {}, nil
     return
   end
   watch.counts[event] = (watch.counts[event] or 0) + 1
@@ -76,13 +109,14 @@ function FM:ThreatCommand(rest)
     if ticker then ticker:Cancel(); ticker = nil end
     if watch.on then
       watch.counts = {}
-      ticker = C_Timer.NewTicker(2, function()
+      ticker = C_Timer.NewTicker(1, function()
         if InCombatLockdown() and UnitExists("target") then
-          local ok, err = pcall(snapshot)
-          if not ok then say("error: " .. tostring(err)) end
+          local ok, line = pcall(compact)
+          if not ok then say("error: " .. tostring(line)); return end
+          if line and line ~= watch.last then watch.last = line; post(line) end -- only when it changes
         end
       end)
-      say("watching: snapshots every 2 seconds while you fight. /fm threat watch again to stop.")
+      say("watching: threat shows in the on-screen feed while you fight, when it changes. /fm threat watch again to stop. /fm threat test prints the full detail in chat.")
     else
       say("stopped watching.")
     end

@@ -391,6 +391,7 @@ local NOTES = {
   unitframes = "These are WoW's own unit frame settings, saved by the game. Options this client doesn't have are hidden. They can't be changed in combat. If the text doesn't update right away, type /reload.",
   tooltip = "Uses base ratios before talents and buffs. Conditional AP (vs Undead, feral forms) is skipped.",
   chat    = "The background option uses WoW's own chat opacity setting, so turning it off restores what you had. Hidden buttons stay hidden even when chat fades in on hover; the tabs always stay.",
+  threat  = "Shows in combat with a hostile target: you, your pet and your party, highest threat first. A gold edge marks who has aggro; [T] and [H] mark the group's tank and healer when roles are set. The warning shows as a banner and a [T] line in the feed, once each time you climb past it.",
   qol     = "All off by default except mail contacts. Faster auto loot follows your Auto Loot game setting. Mail contacts: click a name to fill in To:, right-click a recent name to forget it.",
 }
 
@@ -418,6 +419,7 @@ local function buildSections()
     { key = "combattext", label = "Combat Text", tabs = {
         { label = "Floating gains", kind = "options", group = "fct" },
         { label = "Blizzard", kind = "options", group = "fctBlizz" } } },
+    { key = "threat", label = "Threat Meter", tabs = { { kind = "options", group = "threat" } } },
     { key = "unitframes", label = "Unit Frames", tabs = { { kind = "options", group = "unitframes" } } },
     { key = "tooltips", label = "Tooltips", tabs = { { kind = "options", group = "tooltip" } } },
     { key = "chat", label = "Chat", tabs = { { kind = "options", group = "chat" } } },

@@ -2,7 +2,7 @@
 ## Title: Forever Professions
 ## Notes: See which recipes use an item (hover, Shift, Alt-click), and every profession across your characters. /fp
 ## Author: You
-## Version: 0.1.7
+## Version: 0.2.0
 ## SavedVariables: ForeverProfessionsDB
 ## OptionalDeps: ForeverMetrics
 

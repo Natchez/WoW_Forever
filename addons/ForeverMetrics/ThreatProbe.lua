@@ -104,7 +104,9 @@ end
 local ticker
 function FM:ThreatCommand(rest)
   rest = (rest or ""):lower()
-  if rest == "watch" then
+  if rest == "move" then
+    if FM.ThreatMove then FM:ThreatMove() end
+  elseif rest == "watch" then
     watch.on = not watch.on
     if ticker then ticker:Cancel(); ticker = nil end
     if watch.on then

@@ -220,6 +220,7 @@ select:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
       <div class="actions">
         <select id="addon-pick"><option>Loading…</option></select>
         <button id="dl" type="button">Download</button>
+        <button id="dl-all" type="button" title="Every addon in one zip, one folder each">Download all</button>
         <button id="open-dl" class="ghost" type="button">Install help</button>
       </div>
       <p class="notes" id="addon-notes"></p>
@@ -683,23 +684,11 @@ select:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
   var pick = document.getElementById("addon-pick"), notes = document.getElementById("addon-notes");
   var ADDONS = [];
   var pkgP = fetch("addons.json").then(function (r) { if (!r.ok) throw { code: "fetch" }; return r.json(); });
-  var ALL = "__all__";
   function clean(t) { return (t || "").replace(/\|c\w{8}|\|r/g, ""); }
-  // the addons the dropdown points at: one, or every one for "All addons"
-  function chosen() {
-    if (pick.value === ALL) return ADDONS.slice();
-    var a = ADDONS[pick.selectedIndex];
-    return a ? [a] : [];
-  }
   function showNotes() {
-    var list = chosen();
-    if (pick.value === ALL) {
-      notes.textContent = "Every addon in one zip: " + list.map(function (a) { return clean(a.title); }).join(", ") +
-        ". Unzip it into your AddOns folder; each addon is its own folder.";
-    } else {
-      notes.textContent = list[0] ? clean(list[0].notes) : "";
-    }
-    store("fm-addon", pick.value || "");
+    var a = ADDONS[pick.selectedIndex];
+    notes.textContent = a ? clean(a.notes) : "";
+    store("fm-addon", a ? a.folder : "");
   }
   pkgP.then(function (pkg) {
     ADDONS = pkg.addons || [];
@@ -710,22 +699,23 @@ select:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
       if (a.folder === want) o.selected = true;
       pick.appendChild(o);
     });
-    if (ADDONS.length > 1) {
-      var all = el("option", { value: ALL, text: "All addons (" + ADDONS.length + ")" });
-      if (want === ALL) all.selected = true;
-      pick.appendChild(all);
-    }
+    btnAll.title = "Every addon in one zip, one folder each: " + ADDONS.map(function (a) { return clean(a.title); }).join(", ");
     showNotes();
   }).catch(function () { pick.textContent = ""; pick.appendChild(el("option", { text: "Couldn't load the addon list" })); });
   pick.addEventListener("change", showNotes);
 
-  var btn = document.getElementById("dl"), status = document.getElementById("status");
+  var btn = document.getElementById("dl"), btnAll = document.getElementById("dl-all"), status = document.getElementById("status");
   function say(text, cls) { status.textContent = text; status.className = "status " + (cls || ""); }
   btn.addEventListener("click", function () {
-    var list = chosen();
+    var a = ADDONS[pick.selectedIndex];
+    download(a ? [a] : [], false);
+  });
+  btnAll.addEventListener("click", function () { download(ADDONS.slice(), true); });
+
+  // Zip one addon, or all of them, and hand it to the browser to save
+  function download(list, all) {
     if (!list.length) { say("The addon list hasn't loaded yet.", "err"); return; }
-    btn.disabled = true;
-    var all = pick.value === ALL;
+    btn.disabled = true; btnAll.disabled = true;
     say(all ? "Preparing all " + list.length + " addons…" : "Preparing " + list[0].folder + "…");
     var name = all ? "Forever-Addons-all.zip" : list[0].folder + "-" + list[0].version + ".zip";
     Promise.all([downloadsP, Promise.resolve().then(function () {
@@ -745,11 +735,11 @@ select:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
       say("Downloaded " + name + ". Unzip it into your AddOns folder.", "ok");
     }).catch(function (e) {
       var code = e && e.code;
-      if (code === "declined") say("Download cancelled. Click Download to try again.");
+      if (code === "declined") say("Download cancelled. Click the button to try again.");
       else if (code === "rate_limited") say("A download prompt is already open. Finish that one first.");
       else if (code === "fetch") say("The file couldn't be loaded. Reload the page and try again.", "err");
       else say("Downloads aren't available in this view. Open this page in claude.ai in a browser.", "err");
-    }).then(function () { btn.disabled = false; });
-  });
+    }).then(function () { btn.disabled = false; btnAll.disabled = false; });
+  }
 })();
 </script>

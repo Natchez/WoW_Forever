@@ -683,10 +683,23 @@ select:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
   var pick = document.getElementById("addon-pick"), notes = document.getElementById("addon-notes");
   var ADDONS = [];
   var pkgP = fetch("addons.json").then(function (r) { if (!r.ok) throw { code: "fetch" }; return r.json(); });
-  function showNotes() {
+  var ALL = "__all__";
+  function clean(t) { return (t || "").replace(/\|c\w{8}|\|r/g, ""); }
+  // the addons the dropdown points at: one, or every one for "All addons"
+  function chosen() {
+    if (pick.value === ALL) return ADDONS.slice();
     var a = ADDONS[pick.selectedIndex];
-    notes.textContent = a ? a.notes.replace(/\|c\w{8}|\|r/g, "") : "";
-    store("fm-addon", a ? a.folder : "");
+    return a ? [a] : [];
+  }
+  function showNotes() {
+    var list = chosen();
+    if (pick.value === ALL) {
+      notes.textContent = "Every addon in one zip: " + list.map(function (a) { return clean(a.title); }).join(", ") +
+        ". Unzip it into your AddOns folder; each addon is its own folder.";
+    } else {
+      notes.textContent = list[0] ? clean(list[0].notes) : "";
+    }
+    store("fm-addon", pick.value || "");
   }
   pkgP.then(function (pkg) {
     ADDONS = pkg.addons || [];
@@ -697,6 +710,11 @@ select:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
       if (a.folder === want) o.selected = true;
       pick.appendChild(o);
     });
+    if (ADDONS.length > 1) {
+      var all = el("option", { value: ALL, text: "All addons (" + ADDONS.length + ")" });
+      if (want === ALL) all.selected = true;
+      pick.appendChild(all);
+    }
     showNotes();
   }).catch(function () { pick.textContent = ""; pick.appendChild(el("option", { text: "Couldn't load the addon list" })); });
   pick.addEventListener("change", showNotes);
@@ -704,15 +722,20 @@ select:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
   var btn = document.getElementById("dl"), status = document.getElementById("status");
   function say(text, cls) { status.textContent = text; status.className = "status " + (cls || ""); }
   btn.addEventListener("click", function () {
-    var a = ADDONS[pick.selectedIndex];
-    if (!a) { say("The addon list hasn't loaded yet.", "err"); return; }
+    var list = chosen();
+    if (!list.length) { say("The addon list hasn't loaded yet.", "err"); return; }
     btn.disabled = true;
-    say("Preparing " + a.folder + "…");
-    var name = a.folder + "-" + a.version + ".zip";
+    var all = pick.value === ALL;
+    say(all ? "Preparing all " + list.length + " addons…" : "Preparing " + list[0].folder + "…");
+    var name = all ? "Forever-Addons-all.zip" : list[0].folder + "-" + list[0].version + ".zip";
     Promise.all([downloadsP, Promise.resolve().then(function () {
       if (!window.JSZip) throw { code: "fetch" };
-      var zip = new JSZip(), dir = zip.folder(a.folder);
-      Object.keys(a.files).forEach(function (f) { dir.file(f, a.files[f]); });
+      // one top-level folder per addon, exactly as it goes in Interface\AddOns
+      var zip = new JSZip();
+      list.forEach(function (a) {
+        var dir = zip.folder(a.folder);
+        Object.keys(a.files).forEach(function (f) { dir.file(f, a.files[f]); });
+      });
       return zip.generateAsync({ type: "blob", compression: "DEFLATE" });
     })]).then(function (res) {
       if (!res[0]) throw { code: "unavailable" };

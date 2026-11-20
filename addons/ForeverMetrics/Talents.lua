@@ -37,27 +37,86 @@ local function tabName(tab)
   return "Tree " .. tab
 end
 
+-- GetTalentInfo's results: most clients start with the name; some start
+-- with a talent ID. Returns name, icon, tier, column, rank, max.
+local function talentInfo(tab, i)
+  local r = { GetTalentInfo(tab, i) }
+  if type(safe(r[1])) == "number" and type(safe(r[2])) == "string" then table.remove(r, 1) end
+  return safe(r[1]), safe(r[2]), tonumber(safe(r[3])), tonumber(safe(r[4])), tonumber(safe(r[5])), tonumber(safe(r[6]))
+end
+
+local function numTabs()
+  if not GetNumTalentTabs then return 0 end
+  local n = tonumber(safe(GetNumTalentTabs())) or 0
+  if n == 0 then n = tonumber(safe(GetNumTalentTabs(false, false))) or 0 end
+  return n
+end
+
 local function readTrees()
   trees = {}
-  if not (GetNumTalentTabs and GetNumTalents and GetTalentInfo) then return false end
-  for tab = 1, math.min(3, GetNumTalentTabs() or 0) do
+  if not (GetNumTalents and GetTalentInfo) then return false end
+  local found = 0
+  for tab = 1, math.min(3, numTabs()) do
     local T = { name = tabName(tab), talents = {} }
-    for i = 1, GetNumTalents(tab) or 0 do
-      local name, icon, tier, column, rank, max = GetTalentInfo(tab, i)
-      name, tier, column, max = safe(name), tonumber(safe(tier)), tonumber(safe(column)), tonumber(safe(max))
-      if name and tier and column and max then
-        local t = { name = name, icon = safe(icon), tier = tier, column = column, max = max, real = tonumber(safe(rank)) or 0 }
+    for i = 1, tonumber(safe(GetNumTalents(tab))) or 0 do
+      local ok, name, icon, tier, column, rank, max = pcall(talentInfo, tab, i)
+      if ok and name and tier and column and max then
+        local t = { name = name, icon = icon, tier = tier, column = column, max = max, real = rank or 0 }
         if GetTalentPrereqs then
           local pt, pc = GetTalentPrereqs(tab, i)
           pt, pc = tonumber(safe(pt)), tonumber(safe(pc))
           if pt and pc then t.pre = { tier = pt, column = pc } end
         end
         T.talents[i] = t
+        found = found + 1
       end
     end
     trees[tab] = T
   end
-  return #trees > 0
+  return found > 0
+end
+
+-- /fm talents test: what this client's talent functions give back
+local function describe(...)
+  local out = {}
+  for i = 1, select("#", ...) do
+    local v = select(i, ...)
+    if issecretvalue and issecretvalue(v) then out[#out + 1] = "SECRET"
+    elseif type(v) == "table" then
+      local keys = {}
+      for k, x in pairs(v) do if #keys < 8 then keys[#keys + 1] = tostring(k) .. "=" .. tostring(x) end end
+      out[#out + 1] = "{" .. table.concat(keys, ", ") .. "}"
+    else out[#out + 1] = tostring(v) end
+  end
+  return #out > 0 and table.concat(out, ", ") or "(nothing)"
+end
+
+local function probe()
+  local function try(label, f, ...)
+    if type(f) ~= "function" then say(label .. ": |cffff6b6bno such function|r"); return end
+    local res = { pcall(f, ...) }
+    if res[1] then say(label .. ": " .. describe(select(2, unpack(res))))
+    else say(label .. ": |cffff6b6berror|r " .. tostring(res[2])) end
+  end
+  try("GetNumTalentTabs()", GetNumTalentTabs)
+  try("GetNumTalentTabs(false, false)", GetNumTalentTabs, false, false)
+  try("GetTalentTabInfo(1)", GetTalentTabInfo, 1)
+  try("GetNumTalents(1)", GetNumTalents, 1)
+  try("GetTalentInfo(1, 1)", GetTalentInfo, 1, 1)
+  try("GetTalentPrereqs(1, 1)", GetTalentPrereqs, 1, 1)
+  try("UnitCharacterPoints", UnitCharacterPoints, "player")
+  say(("other talent systems: C_SpecializationInfo %s · C_ClassTalents %s · C_Traits %s · GetSpecialization %s"):format(
+    type(C_SpecializationInfo), type(C_ClassTalents), type(C_Traits), type(GetSpecialization)))
+  if C_SpecializationInfo and C_SpecializationInfo.GetTalentInfo then
+    try("C_SpecializationInfo.GetTalentInfo({ tier = 1, column = 1 })", C_SpecializationInfo.GetTalentInfo, { tier = 1, column = 1 })
+  end
+  local isLoaded = (C_AddOns and C_AddOns.IsAddOnLoaded) or IsAddOnLoaded
+  local ui = {}
+  for _, n in ipairs({ "Blizzard_TalentUI", "Blizzard_PlayerSpells", "Blizzard_ClassTalentUI" }) do
+    ui[#ui + 1] = n .. " " .. (isLoaded and tostring(isLoaded(n)) or "?")
+  end
+  say("talent windows: " .. table.concat(ui, " · ") .. " · PlayerTalentFrame " .. type(_G.PlayerTalentFrame) ..
+    " · TalentFrame " .. type(_G.TalentFrame) .. " · PlayerSpellsFrame " .. type(_G.PlayerSpellsFrame))
 end
 
 ---------------------------------------------------------------------------
@@ -262,7 +321,10 @@ end
 function FM:OpenTalentPlanner(level60)
   if not FM:Char() then return end
   if not win then
-    if not readTrees() then say("couldn't read your talent trees on this client."); return end
+    if not readTrees() then
+      say("couldn't read your talent trees on this client. Type |cffffff00/fm talents test|r and send Claude a screenshot of what it prints.")
+      return
+    end
     loadPlan()
     build()
   end
@@ -276,6 +338,11 @@ end
 
 function FM:TalentsCommand(rest)
   rest = (rest or ""):lower()
+  if rest == "test" then
+    local ok, err = pcall(probe)
+    if not ok then say("probe error: " .. tostring(err)) end
+    return
+  end
   self:OpenTalentPlanner(rest == "60" and true or (rest == "" and nil or false))
 end
 

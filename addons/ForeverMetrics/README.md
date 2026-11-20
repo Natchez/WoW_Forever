@@ -1,4 +1,4 @@
-# Forever Metrics (v0.17.5)
+# Forever Metrics (v0.17.6)
 
 A RuneMetrics-style tracker for World of Warcraft: Forever. It keeps an activity feed and stats for every character, and you can swap between characters or view totals for your whole account.
 
@@ -42,7 +42,7 @@ A RuneMetrics-style tracker for World of Warcraft: Forever. It keeps an activity
   - **Chat**
   - **Quality of Life**
 
-The window title shows the installed version, like "Forever Metrics v0.17.5", and so does the "loaded" line in chat at login.
+The window title shows the installed version, like "Forever Metrics v0.17.6", and so does the "loaded" line in chat at login.
 
 `<` and `>` at the top right switch characters (including "All Characters") on pages that show one character's data. `/fm settings` opens straight to the Options pages.
 
@@ -148,6 +148,7 @@ Try talent builds without spending a point. Open it with the **Plan** and **Plan
 - Your class's three trees with the real talents. Left-click adds a point, right-click takes one back, following the game's rules: 5 points in a tree per tier before the next, and talents that need another maxed first. Talents you can't take yet are greyed; hover one to see why.
 - The header shows points used of your budget and the split per tree (like 31 / 0 / 20). **Start from my talents** copies your real build in, **Clear** empties it, and the level button switches between your level and a level 60 build.
 - Plans are saved per character. Your real talents are never changed.
+- `/fm talents test` (v0.17.6) prints what this client's talent functions return, for when the planner can't read the trees.
 
 ## Shops on the minimap (new in v0.17.4)
 Options > Minimap switches on Blizzard's town tracking, so shop icons show on the minimap: Repair, Food & Drink, Innkeeper, Flight Master, Mailbox, Banker, Auctioneer and the trainers are on by default; Stable Master, Ammunition, Poisons, Reagents and Item Upgrade are there to tick. Types this game doesn't have are hidden.

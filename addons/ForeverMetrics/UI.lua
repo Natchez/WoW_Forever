@@ -392,6 +392,7 @@ local NOTES = {
   tooltip = "Uses base ratios before talents and buffs. Conditional AP (vs Undead, feral forms) is skipped.",
   chat    = "The background option uses WoW's own chat opacity setting, so turning it off restores what you had. Hidden buttons stay hidden even when chat fades in on hover; the tabs always stay.",
   threat  = "Shows in combat with a hostile target: you, your pet and your party, highest threat first. A gold edge marks who has aggro; [T] and [H] mark the group's tank and healer when roles are set. The warning shows as a banner and a [T] line in the feed, once each time you climb past it.",
+  minimap = "Blizzard draws the shop icons; this switches them on. Your gathering tracking (herbs, minerals) isn't touched. The shop types here override the minimap's own tracking menu for these types.",
   qol     = "All off by default except mail contacts and zone levels. Faster auto loot follows your Auto Loot game setting. Mail contacts: click a name to fill in To:, right-click a recent name to forget it.",
 }
 
@@ -420,6 +421,7 @@ local function buildSections()
         { label = "Floating gains", kind = "options", group = "fct" },
         { label = "Blizzard", kind = "options", group = "fctBlizz" } } },
     { key = "threat", label = "Threat Meter", tabs = { { kind = "options", group = "threat" } } },
+    { key = "minimap", label = "Minimap", tabs = { { kind = "options", group = "minimap" } } },
     { key = "unitframes", label = "Unit Frames", tabs = { { kind = "options", group = "unitframes" } } },
     { key = "tooltips", label = "Tooltips", tabs = { { kind = "options", group = "tooltip" } } },
     { key = "chat", label = "Chat", tabs = { { kind = "options", group = "chat" } } },
@@ -459,7 +461,9 @@ local function optionDefs(group)
   local list = {}
   for _, d in ipairs(FM.SETTINGS) do
     -- game-setting rows only appear if this client actually has that CVar
-    if d.group == group and (not d.cvar or FM:CVarExists(d.cvar)) then list[#list + 1] = d end
+    -- and minimap shop rows only if this client has that tracking type
+    if d.group == group and (not d.cvar or FM:CVarExists(d.cvar))
+       and (not d.track or not FM.HasTracking or FM:HasTracking(d.track)) then list[#list + 1] = d end
   end
   return list
 end

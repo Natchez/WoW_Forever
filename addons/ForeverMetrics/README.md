@@ -1,4 +1,4 @@
-# Forever Metrics (v0.17.3)
+# Forever Metrics (v0.17.4)
 
 A RuneMetrics-style tracker for World of Warcraft: Forever. It keeps an activity feed and stats for every character, and you can swap between characters or view totals for your whole account.
 
@@ -42,7 +42,7 @@ A RuneMetrics-style tracker for World of Warcraft: Forever. It keeps an activity
   - **Chat**
   - **Quality of Life**
 
-The window title shows the installed version, like "Forever Metrics v0.17.3", and so does the "loaded" line in chat at login.
+The window title shows the installed version, like "Forever Metrics v0.17.4", and so does the "loaded" line in chat at login.
 
 `<` and `>` at the top right switch characters (including "All Characters") on pages that show one character's data. `/fm settings` opens straight to the Options pages.
 
@@ -142,6 +142,11 @@ A small list of threat on your target, shown in combat with a hostile target and
 - **Options > Threat Meter:** on/off, everyone or just you, the warning and its %, sound, hide when solo with no pet, and size.
 - **Moving it:** Edit Mode (it shows sample rows), or `/fm threat move` to unlock and lock it.
 - `/fm threat test` and `/fm threat watch` still print the raw numbers, for checking.
+
+## Shops on the minimap (new in v0.17.4)
+Options > Minimap switches on Blizzard's town tracking, so shop icons show on the minimap: Repair, Food & Drink, Innkeeper, Flight Master, Mailbox, Banker, Auctioneer and the trainers are on by default; Stable Master, Ammunition, Poisons, Reagents and Item Upgrade are there to tick. Types this game doesn't have are hidden.
+- **Only in towns:** shop icons show while you're resting (a city or an inn) and clear away outside.
+- Gathering tracking (herbs, minerals) isn't touched. For the shop types listed, this page wins over the minimap's own tracking menu.
 
 ## Quality of Life (new in v0.7.0)
 These Leatrix-style toggles are all off by default, except mail contacts and zone levels.

@@ -1,4 +1,4 @@
-# Forever Professions (v0.2.0)
+# Forever Professions (v0.2.1)
 
 Shows which recipes use an item, and every profession across all your characters. Type `/fp` in game.
 
@@ -29,6 +29,16 @@ Options > Tooltips turns each step on or off, and can leave out your other chara
 - **Tooltips:** `AH: 12s 50c each · 2h ago` on hover; Shift adds what a stack is worth.
 - **Recipes page:** each material's cost, then `Materials 12s · Sells for 20s · Profit 8s` (or Loss). Materials with no listings are counted as "not priced", so the total can be low. Vendor-bought materials (Weak Flux, thread) only show an AH price if someone lists them.
 - Options > Tooltips > "Show auction house prices" turns the tooltip line off.
+
+## Camp features (new in v0.2.1)
+Hover a campfire or a camp feature on the ground, or the item that places it, and the tooltip says what it gives at your level, so you can tell what's on the ground before sitting there for a minute:
+
+- **Sharpening Wheel** Strength, **Lodestone** melee Attack Power, **Enchanted Lute** Armor (plus stats and resistances), **Faction Banner** Spirit, **First Aid Kit** Stamina, **Incense Candle** Intellect, **Mana Well** mana per 5 sec, **Fish Bowl** 8% stats, **Camp Chair** 2% crit, **Camp Tent** rested XP.
+- Upgrades (Master Forge, Loom, Greenhouse, Repair Bot...) show their base's buff plus what they add.
+- Each line notes the class buff it doesn't stack with (for example, the Lute and Mark of the Wild).
+- Campfires show how many features they hold (Basic 3, Journeyman 5, Expert 10).
+
+Values come from Forever's spell data and step up with your level. Turn it off under Options > Tooltips.
 
 ## Where the data comes from
 - **Recipes and their colours:** read when you open a profession window. Colours are as of that moment, so open the window again after skilling up.

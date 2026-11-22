@@ -108,6 +108,7 @@ FP.SETTINGS = {
   { group = "tooltip", key = "altClick",  label = "Alt-click an item to list every recipe that uses it", default = true },
   { group = "tooltip", key = "tipAlts",   label = "Include your other characters",        default = true },
   { group = "tooltip", key = "tipGrey",   label = "Count grey recipes",                   default = true },
+  { group = "tooltip", key = "campTips",  label = "Show the buff a camp feature gives when you hover it", default = true },
 }
 local defs, hooks = {}, {}
 for _, d in ipairs(FP.SETTINGS) do defs[d.key] = d end

@@ -73,8 +73,16 @@ end
 function FB:Char()
   local db = FB:DB()
   local name = safe(UnitName("player")) or "?"
-  local realm = safe(GetRealmName and GetRealmName()) or "?"
+  -- Forever's GetRealmName() can return "": fall back to the last realm seen
+  local realm = safe(GetRealmName and GetRealmName())
+  if type(realm) == "string" and realm ~= "" then db.realm = realm
+  else realm = db.realm or (ForeverMetricsDB and ForeverMetricsDB.realm) or "?" end
   local key = name .. "-" .. realm
+  local blank = name .. "-"
+  if realm ~= "?" and db.chars[blank] then
+    db.chars[key] = db.chars[key] or db.chars[blank]
+    db.chars[blank] = nil
+  end
   db.chars[key] = db.chars[key] or {}
   local c = db.chars[key]
   c.last = c.last or {}

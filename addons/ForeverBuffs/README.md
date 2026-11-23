@@ -1,4 +1,4 @@
-# Forever Buffs (v0.1.0)
+# Forever Buffs (v0.1.1)
 
 A small row of icons for the self-buffs you should have up but don't. It stays hidden when nothing is missing. Click an icon to cast that buff.
 

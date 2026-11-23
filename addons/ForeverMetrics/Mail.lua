@@ -24,7 +24,7 @@ local function safe(v)
   return v
 end
 
-local function realm() return safe(GetRealmName()) or "?" end
+local function realm() return FM:Realm() end
 local function first(name) return type(name) == "string" and (name:match("^(%S+)") or name):lower() or "" end
 
 local function recentList()

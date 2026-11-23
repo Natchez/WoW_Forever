@@ -2,7 +2,7 @@
 ## Title: Forever Buffs
 ## Notes: A small row of icons for the self-buffs you should have up but don't. Click one to cast it. /fb
 ## Author: You
-## Version: 0.1.0
+## Version: 0.1.1
 ## SavedVariables: ForeverBuffsDB
 
 Data.lua

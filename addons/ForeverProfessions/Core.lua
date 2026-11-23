@@ -219,12 +219,74 @@ FP:On("ADDON_LOADED", function(name)
   db.settings = db.settings or {}
 end)
 
+-- Forever's GetRealmName() started returning "" (Nov 2026), which made a
+-- second "Name-" record per character. Fall back to the last realm seen
+-- (or Forever Metrics', or the one your characters are on) and fold the
+-- "Name-" records back into the real ones: the newer snapshot wins.
+function FP:Realm()
+  local db = ForeverProfessionsDB
+  local r = FP.safe(GetRealmName())
+  if type(r) == "string" and r ~= "" then db.realm = r; return r end
+  if db.realm then return db.realm end
+  if ForeverMetricsDB and ForeverMetricsDB.realm then return ForeverMetricsDB.realm end
+  local found
+  for _, c in pairs(db.chars) do
+    if type(c) == "table" and type(c.realm) == "string" and c.realm ~= "" then
+      if found and found ~= c.realm then return "" end
+      found = c.realm
+    end
+  end
+  return found or ""
+end
+
+local function mergeChar(dst, src)
+  local newer = (src.lastSeen or 0) >= (dst.lastSeen or 0)
+  for k, v in pairs(src) do
+    if k == "prof" and type(dst.prof) == "table" then
+      for p, e in pairs(v) do
+        local d = dst.prof[p]
+        if not d or (e.scanned or 0) >= (d.scanned or 0) then dst.prof[p] = e end
+      end
+    elseif k ~= "realm" and k ~= "name" and (dst[k] == nil or newer) then
+      dst[k] = v
+    end
+  end
+end
+
+function FP:MergeBlankRealm(realm)
+  local chars = ForeverProfessionsDB.chars
+  if realm == "" then return end
+  local blank = {}
+  for key, c in pairs(chars) do
+    if type(c) == "table" and type(key) == "string" and key:match("^.+%-$") then blank[#blank + 1] = key end
+  end
+  for _, key in ipairs(blank) do
+    local good = key .. realm
+    if chars[good] then FP:Try("merge " .. key, mergeChar, chars[good], chars[key])
+    else chars[good] = chars[key]; chars[good].realm = realm end
+    chars[key] = nil
+  end
+  -- AH prices saved under "-<faction>"
+  local prices = ForeverProfessionsDB.prices
+  if prices then
+    local moved = {}
+    for k in pairs(prices) do if type(k) == "string" and k:match("^%-") then moved[#moved + 1] = k end end
+    for _, k in ipairs(moved) do
+      local good = realm .. k
+      prices[good] = prices[good] or {}
+      for id, v in pairs(prices[k]) do prices[good][id] = v end -- the blank-realm prices are newer
+      prices[k] = nil
+    end
+  end
+end
+
 FP:On("PLAYER_LOGIN", function()
   local db = ForeverProfessionsDB
   FP:Try("import", importFromMetrics, db)
-  local name, realm = FP.safe(UnitName("player")), FP.safe(GetRealmName())
+  local name, realm = FP.safe(UnitName("player")), FP:Realm()
   if not name then return end
-  FP.key = name .. "-" .. (realm or "?")
+  FP:Try("realm merge", FP.MergeBlankRealm, FP, realm)
+  FP.key = name .. "-" .. (realm ~= "" and realm or "?")
   local c = db.chars[FP.key] or { name = name, realm = realm, skills = {}, prof = {} }
   db.chars[FP.key] = c
   c.skills, c.prof = c.skills or {}, c.prof or {}

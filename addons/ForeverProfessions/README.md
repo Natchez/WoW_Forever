@@ -1,4 +1,4 @@
-# Forever Professions (v0.2.1)
+# Forever Professions (v0.2.2)
 
 Shows which recipes use an item, and every profession across all your characters. Type `/fp` in game.
 

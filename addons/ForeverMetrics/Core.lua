@@ -429,8 +429,152 @@ function H.ADDON_LOADED(name)
   ForeverMetricsDB.chars = ForeverMetricsDB.chars or {}
 end
 
+---------------------------------------------------------------------------
+-- Realm name. In Nov 2026 Forever started returning "" from GetRealmName(),
+-- which started a second, empty record ("Name-") for every character. The
+-- realm now falls back to the last one we saw, or the one your existing
+-- characters are on, and those "Name-" records are folded back in.
+---------------------------------------------------------------------------
+
+local function realmFromChars()
+  local found
+  for _, c in pairs(ForeverMetricsDB.chars or {}) do
+    local r = type(c) == "table" and c.realm
+    if type(r) == "string" and r ~= "" then
+      if found and found ~= r then return nil end -- more than one realm: can't guess
+      found = r
+    end
+  end
+  return found
+end
+
+function FM:Realm()
+  local r = GetRealmName and safe(GetRealmName())
+  if type(r) == "string" and r ~= "" then
+    ForeverMetricsDB.realm = r
+    return r
+  end
+  return ForeverMetricsDB.realm or realmFromChars() or ""
+end
+
+-- Combine record src (newer) into dst. Counters add up, lists join, the
+-- newer snapshot wins for bags, bank and professions.
+local function append(dst, src, max)
+  for _, v in ipairs(src or {}) do dst[#dst + 1] = v end
+  while max and #dst > max do table.remove(dst, 1) end
+end
+
+local function fold(dst, src)
+  for k, v in pairs(src) do
+    local d = dst[k]
+    if d == nil then dst[k] = v
+    elseif type(d) == "number" and type(v) == "number" then dst[k] = d + v
+    elseif type(d) == "table" and type(v) == "table" then fold(d, v)
+    else dst[k] = v end
+  end
+end
+
+local function mergeChar(dst, src)
+  local dstKills, dstPlayed = (dst.stats and dst.stats.kills) or 0, dst.played or 0
+  local keep = {
+    realm = dst.realm,
+    created = math.min(dst.created or time(), src.created or time()),
+    lastSeen = math.max(dst.lastSeen or 0, src.lastSeen or 0),
+    level = math.max(dst.level or 1, src.level or 1),
+    played = dstPlayed + (src.played or 0),
+    levelStart = src.levelStart and (dstPlayed + src.levelStart) or dst.levelStart,
+  }
+  -- lists: older entries first
+  append(dst.feed, src.feed, FEED_MAX); src.feed = nil
+  append(dst.sessions, src.sessions, SESSIONS_MAX); src.sessions = nil
+  -- level -> time: keep what the old record has, add the new levels
+  for lv, t in pairs(src.levelTimes or {}) do
+    if dst.levelTimes and dst.levelTimes[lv] == nil then dst.levelTimes[lv] = t end
+  end
+  src.levelTimes = nil
+  -- skills: highest rank, gains add up
+  for k, v in pairs(src.skills or {}) do
+    local d = dst.skills and dst.skills[k]
+    if d then d.rank = math.max(d.rank or 0, v.rank or 0); d.gains = (d.gains or 0) + (v.gains or 0)
+    elseif dst.skills then dst.skills[k] = v end
+  end
+  src.skills = nil
+  -- newer snapshot wins
+  for _, k in ipairs({ "bags", "bank", "lastLevelUp" }) do
+    if src[k] then dst[k] = src[k]; src[k] = nil end
+  end
+  if src.prof then
+    dst.prof = dst.prof or {}
+    for p, v in pairs(src.prof) do
+      local d = dst.prof[p]
+      if not d or (v.scanned or 0) >= (d.scanned or 0) then dst.prof[p] = v end
+    end
+    src.prof = nil
+  end
+  -- loot: dry-streak markers count kills, which now include the old record's
+  local L, S = dst.loot, src.loot
+  if L and S then
+    L.lastGreenKill = dstKills + (S.lastGreenKill or 0)
+    L.lastBlueKill = dstKills + (S.lastBlueKill or 0)
+    L.longestDry = math.max(L.longestDry or 0, S.longestDry or 0)
+    append(L.notable, S.notable, NOTABLE_MAX)
+    for id, e in pairs(S.items or {}) do
+      local d = L.items[id]
+      if d then d.c = (d.c or 0) + (e.c or 0) else L.items[id] = e end
+    end
+    S.lastGreenKill, S.lastBlueKill, S.longestDry, S.startKills, S.notable, S.items = nil, nil, nil, nil, nil, nil
+  end
+  for _, k in ipairs({ "realm", "created", "lastSeen", "level", "played", "levelStart" }) do src[k] = nil end
+  fold(dst, src) -- stats, kills, zones, gathering, loot counts; names and class from the newer record
+  for k, v in pairs(keep) do dst[k] = v end
+end
+
+local function mergeBlankRealm(realm)
+  if realm == "" then return end
+  local chars = ForeverMetricsDB.chars
+  local blank = {}
+  for key, c in pairs(chars) do
+    if type(c) == "table" and type(key) == "string" and key:match("^.-%-$") then blank[#blank + 1] = key end
+  end
+  for _, key in ipairs(blank) do
+    local c, name = chars[key], key:match("^(.-)%-$")
+    if name ~= "" then
+      local good = name .. "-" .. realm
+      if chars[good] then
+        local ok, err = pcall(mergeChar, chars[good], c)
+        if ok then
+          chars[key] = nil
+          if FM.debug then print("|cff888888FM:|r merged", key, "into", good) end
+        elseif FM.debug then print("|cffff5555ForeverMetrics merge error|r", err) end
+      else
+        c.realm = realm
+        chars[good], chars[key] = c, nil
+      end
+    end
+  end
+  -- recent mail contacts saved under the blank realm
+  local mail = ForeverMetricsDB.mail
+  if mail and mail[""] then
+    local list = mail[realm] or {}
+    for _, e in ipairs(mail[""]) do
+      local dup
+      for _, o in ipairs(list) do
+        if type(o.n) == "string" and type(e.n) == "string" and o.n:lower() == e.n:lower() then dup = o end
+      end
+      if dup then
+        dup.c = (dup.c or 0) + (e.c or 0)
+        if (e.t or 0) > (dup.t or 0) then dup.t, dup.n = e.t, e.n end
+      else list[#list + 1] = e end
+    end
+    table.sort(list, function(a, b) return (a.t or 0) > (b.t or 0) end)
+    mail[realm], mail[""] = list, nil
+  end
+end
+FM.MergeChar = mergeChar -- for the stand-in test
+
 function H.PLAYER_LOGIN()
-  local name, realm = UnitName("player"), GetRealmName()
+  local name, realm = UnitName("player"), FM:Realm()
+  mergeBlankRealm(realm)
   FM.key = name .. "-" .. realm
   local db = ForeverMetricsDB.chars
   local isNew = not db[FM.key]

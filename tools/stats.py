@@ -355,6 +355,82 @@ def merge_trainers(lists):
     return out
 
 
+def _fold(d, s):
+    for k, v in s.items():
+        if k not in d:
+            d[k] = v
+        elif isinstance(d[k], (int, float)) and isinstance(v, (int, float)) and not isinstance(v, bool):
+            d[k] = d[k] + v
+        elif isinstance(d[k], dict) and isinstance(v, dict):
+            _fold(d[k], v)
+        elif isinstance(d[k], list) and isinstance(v, list):
+            d[k] = d[k] + v
+        else:
+            d[k] = v
+
+
+def merge_blank_realm(chars):
+    """Fold "Name-" records (Forever's GetRealmName() returned "" from Nov 2026)
+    into "Name-<realm>", the same way the addon does at login from v0.17.8."""
+    realms = {c.get("realm") for c in chars.values() if isinstance(c, dict) and c.get("realm")}
+    if len(realms) != 1:
+        return chars
+    realm = realms.pop()
+    for key in [k for k in chars if isinstance(k, str) and k.endswith("-")]:
+        src, good = as_dict(chars.pop(key)), key + realm
+        src["realm"] = realm
+        dst = chars.get(good)
+        if not isinstance(dst, dict):
+            chars[good] = src
+            continue
+        dk, dp = as_dict(dst.get("stats")).get("kills", 0), dst.get("played", 0)
+        keep = {
+            "realm": realm,
+            "created": min(dst.get("created") or 9e18, src.get("created") or 9e18),
+            "lastSeen": max(dst.get("lastSeen") or 0, src.get("lastSeen") or 0),
+            "level": max(dst.get("level") or 1, src.get("level") or 1),
+            "played": dp + (src.get("played") or 0),
+        }
+        lt = as_map(dst.get("levelTimes"))
+        for lv, t in as_map(src.pop("levelTimes", None)).items():
+            lt.setdefault(lv, t)
+        keep["levelTimes"] = lt
+        sk = as_dict(dst.get("skills"))
+        for n, v in as_dict(src.pop("skills", None)).items():
+            o = sk.get(n)
+            if isinstance(o, dict) and isinstance(v, dict):
+                o["rank"] = max(o.get("rank", 0), v.get("rank", 0))
+                o["gains"] = o.get("gains", 0) + v.get("gains", 0)
+            else:
+                sk[n] = v
+        for k in ("bags", "bank", "lastLevelUp"):
+            if k in src:
+                dst[k] = src.pop(k)
+        pr = as_dict(dst.get("prof"))
+        for n, v in as_dict(src.pop("prof", None)).items():
+            if n not in pr or as_dict(v).get("scanned", 0) >= as_dict(pr[n]).get("scanned", 0):
+                pr[n] = v
+        dst["prof"] = pr
+        L, S = as_dict(dst.get("loot")), as_dict(src.get("loot"))
+        if L and S:
+            L["lastGreenKill"] = dk + S.pop("lastGreenKill", 0)
+            L["lastBlueKill"] = dk + S.pop("lastBlueKill", 0)
+            L["longestDry"] = max(L.get("longestDry", 0), S.pop("longestDry", 0))
+            S.pop("startKills", None)
+            items = as_map(L.get("items"))
+            for i, e in as_map(S.pop("items", None)).items():
+                if i in items and isinstance(items[i], dict):
+                    items[i]["c"] = items[i].get("c", 0) + as_dict(e).get("c", 0)
+                else:
+                    items[i] = e
+            L["items"] = items
+        for k in ("realm", "created", "lastSeen", "level", "played", "levelStart"):
+            src.pop(k, None)
+        _fold(dst, src)
+        dst.update(keep)
+    return chars
+
+
 def main(args):
     if not args:
         sys.exit(__doc__)
@@ -368,7 +444,7 @@ def main(args):
         files.append((owner, LuaParser(Path(path).read_text(encoding="utf-8")).globals().get("ForeverMetricsDB") or {}))
     trainers = merge_trainers(as_dict(db.get("profTrainer")) for _, db in files)
     for owner, db in files:
-        for key, c in as_dict(db.get("chars")).items():
+        for key, c in merge_blank_realm(as_dict(db.get("chars"))).items():
             built = build_char(key, as_dict(c), trainers)
             built["owner"] = owner
             old = chars.get(key)

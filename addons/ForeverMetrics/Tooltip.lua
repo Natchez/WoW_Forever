@@ -49,6 +49,12 @@ local function convert(ap, ratios)
   return COLOR .. "  " .. ap .. " AP = " .. table.concat(parts, " or ") .. "|r"
 end
 
+-- Grey text is a set bonus (or anything else) that isn't active for you.
+local function grey(r, g, b)
+  r, g, b = safe(r), safe(g), safe(b)
+  return r and g and b and math.abs(r - g) < 0.05 and math.abs(g - b) < 0.05 and r < 0.6
+end
+
 -- Read the tooltip's own text so it works for "Equip: +X Attack Power." lines.
 local function scan(tooltip)
   local name = tooltip:GetName()
@@ -60,7 +66,9 @@ local function scan(tooltip)
     if t then
       local lower = t:lower()
       -- Skip conditional AP (vs Undead/Demons, feral forms) to avoid overstating.
-      if not lower:find("when fighting") and not lower:find("cat, bear") and not lower:find("forms only") then
+      -- and set bonuses you haven't unlocked yet ("(3) Set: ...", greyed out)
+      local inactive = t:find("^%(%d+%) [Ss]et:") or (fs.GetTextColor and grey(fs:GetTextColor()))
+      if not inactive and not lower:find("when fighting") and not lower:find("cat, bear") and not lower:find("forms only") then
         local n = lower:match("%+(%d+) ranged attack power")
         if n then
           ranged = ranged + tonumber(n)

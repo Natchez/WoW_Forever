@@ -6,7 +6,7 @@ Our addons for World of Warcraft: Forever.
 
 | Addon | Version | What it does |
 |---|---|---|
-| [ForeverMetrics](addons/ForeverMetrics) | 0.17.11 | Stats, activity feed, loot luck, XP pill, level-up pop-up, threat meter and duo mode. Type `/fm` in game. See its [README](addons/ForeverMetrics/README.md). |
+| [ForeverMetrics](addons/ForeverMetrics) | 0.17.12 | Stats, activity feed, loot luck, XP pill, level-up pop-up, threat meter and duo mode. Type `/fm` in game. See its [README](addons/ForeverMetrics/README.md). |
 | [ForeverProfessions](addons/ForeverProfessions) | 0.2.2 | Which recipes use an item (hover, Shift, Alt-click), and every profession across your characters. Type `/fp` in game. See its [README](addons/ForeverProfessions/README.md). |
 | [ForeverBuffs](addons/ForeverBuffs) | 0.1.1 | A row of icons for the self-buffs you're missing; click one to cast it. Type `/fb` in game. See its [README](addons/ForeverBuffs/README.md). |
 

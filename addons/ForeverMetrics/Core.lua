@@ -253,7 +253,7 @@ FM.SETTINGS = {
   { group = "unitframes", key = "ufTargetCast",    cvar = "showTargetCastbar",    label = "Show your target's cast bar" },
   { group = "tooltip", key = "apTooltip",      label = "Show AP as Strength/Agility",           default = true },
   { group = "tooltip", key = "apTotal",        label = "Show total melee AP from item",         default = true },
-  { group = "tooltip", key = "skinTip",        label = "Show the Skinning a beast needs vs yours", default = true },
+  { group = "tooltip", key = "skinTip",        label = "Show the gathering skill a beast, ore or herb needs vs yours", default = true },
   { group = "chat",    key = "hideChatBg",     label = "Hide the chat window background",       default = false },
   { group = "chat",    key = "hideChatButtons", label = "Hide chat buttons (keeps the tabs)",   default = false },
   { group = "chat",    key = "hideChatIdle",   label = "Hide chat until you mouse over it or type", default = false },

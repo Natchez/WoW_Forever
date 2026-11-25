@@ -1,7 +1,7 @@
 -- Forever Metrics: Skinning on unit tooltips
 -- Hover a beast (alive or dead) or any corpse marked "Skinnable" and, if you
--- have Skinning, the tooltip shows yours against what it needs:
--- "Skinning 98/105", green if you can skin it, red if not.
+-- have Skinning, the tooltip shows what it needs against yours:
+-- "S(105/98)", green if you can skin it, red if not.
 -- Classic rule: up to level 10 needs 1, levels 11-20 need (level-10) x 10,
 -- above 20 level x 5.
 
@@ -69,10 +69,10 @@ local function onUnit(tip)
   if UnitIsDead(unit) and not markedSkinnable(tip) then return end -- already skinned, or nothing to skin
   local level = safe(UnitLevel(unit))
   if type(level) ~= "number" then return end
-  -- "Skinning 112/120": yours / needed, green if you can skin it
+  -- "S(120/112)": needed / yours, green if you can skin it
   local req = level >= 0 and need(level) or nil
   local col = (req and rank >= req) and "|cff7fd36b" or "|cffff5555"
-  local text = ("%sSkinning %d/%s|r"):format(col, rank, req or "??")
+  local text = ("%sS(%s/%d)|r"):format(col, req or "??", rank)
   tip.__fmSkin = true
   tip:AddLine(text)
   tip:Show()

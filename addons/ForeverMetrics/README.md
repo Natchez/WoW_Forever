@@ -1,4 +1,4 @@
-# Forever Metrics (v0.17.9)
+# Forever Metrics (v0.17.10)
 
 A RuneMetrics-style tracker for World of Warcraft: Forever. It keeps an activity feed and stats for every character, and you can swap between characters or view totals for your whole account.
 
@@ -42,7 +42,7 @@ A RuneMetrics-style tracker for World of Warcraft: Forever. It keeps an activity
   - **Chat**
   - **Quality of Life**
 
-The window title shows the installed version, like "Forever Metrics v0.17.9", and so does the "loaded" line in chat at login.
+The window title shows the installed version, like "Forever Metrics v0.17.10", and so does the "loaded" line in chat at login.
 
 `<` and `>` at the top right switch characters (including "All Characters") on pages that show one character's data. `/fm settings` opens straight to the Options pages.
 
@@ -174,7 +174,7 @@ Item tooltips with Attack Power get an extra blue line showing what that AP is w
 - `/fm ap` turns it on or off, and `/fm ap total` toggles the total line. The old `/ap2s` command still works. Both toggles are also under Options > Tooltips.
 
 ## Skinning on tooltips (new in v0.17.9)
-With Skinning, hovering a beast (alive or dead) or a corpse marked "Skinnable" adds the skill it needs against yours, and the highest level you can skin: "Skinning 120 needed · you 112 (up to lvl 22)". Green means you can skin it, red means you can't yet. It uses Classic's rule (up to level 10 needs 1, levels 11-20 need (level - 10) x 10, above that level x 5), which Forever is assumed to share. Turn it off under Options > Tooltips.
+With Skinning, hovering a beast (alive or dead) or a corpse marked "Skinnable" adds your Skinning against what it needs: "Skinning 112/120". Green means you can skin it, red means you can't yet. It uses Classic's rule (up to level 10 needs 1, levels 11-20 need (level - 10) x 10, above that level x 5), which Forever is assumed to share. Turn it off under Options > Tooltips.
 
 ## Settings
 Every toggle lives under **Options** in the side menu, and `/fm settings` jumps straight there. Each page has a short note at the bottom. Any new settings group added in Core.lua gets its own page automatically.

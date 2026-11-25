@@ -508,6 +508,9 @@ select:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
     fill();
     wrap.appendChild(chips);
     wrap.appendChild(listBox);
+    if (c.loot.tracked > 0) wrap.appendChild(el("p", { "class": "muted", style: "margin:12px 0 0;font-size:13px",
+      text: "Waylaid Crates: " + n(c.loot.crates || 0) + " in " + n(c.loot.tracked) + " kills" +
+        (c.loot.crates ? " (1 per " + n(Math.round(c.loot.tracked / c.loot.crates)) + ")" : "") }));
     if (c.loot.cloth.length) wrap.appendChild(el("p", { "class": "muted", style: "margin:12px 0 0;font-size:13px",
       text: "Cloth: " + c.loot.cloth.map(function (x) { return x.name.replace(" Cloth", "") + " " + n(x.value); }).join(" · ") }));
     return wrap;

@@ -101,6 +101,13 @@ local function ensureLoot(c)
 end
 FM.EnsureLoot = ensureLoot
 
+-- "crates" for Waylaid Crates, "writs" for Craftsman's Writs
+function FM.CrateKind(name)
+  if type(name) ~= "string" then return nil end
+  if name:find("^Waylaid Crate") then return "crates" end
+  if name:find("^Craftsman's Writ") then return "writs" end
+end
+
 local function bump(tbl, key, field, n)
   local e = tbl[key]
   if not e then e = { kills = 0, greens = 0, blues = 0, purples = 0 }; tbl[key] = e end
@@ -246,6 +253,7 @@ FM.SETTINGS = {
   { group = "unitframes", key = "ufTargetCast",    cvar = "showTargetCastbar",    label = "Show your target's cast bar" },
   { group = "tooltip", key = "apTooltip",      label = "Show AP as Strength/Agility",           default = true },
   { group = "tooltip", key = "apTotal",        label = "Show total melee AP from item",         default = true },
+  { group = "tooltip", key = "skinTip",        label = "Show the Skinning a beast needs vs yours", default = true },
   { group = "chat",    key = "hideChatBg",     label = "Hide the chat window background",       default = false },
   { group = "chat",    key = "hideChatButtons", label = "Hide chat buttons (keeps the tabs)",   default = false },
   { group = "chat",    key = "hideChatIdle",   label = "Hide chat until you mouse over it or type", default = false },
@@ -516,13 +524,14 @@ local function mergeChar(dst, src)
   if L and S then
     L.lastGreenKill = dstKills + (S.lastGreenKill or 0)
     L.lastBlueKill = dstKills + (S.lastBlueKill or 0)
+    if S.lastCrateKill then L.lastCrateKill = dstKills + S.lastCrateKill end
     L.longestDry = math.max(L.longestDry or 0, S.longestDry or 0)
     append(L.notable, S.notable, NOTABLE_MAX)
     for id, e in pairs(S.items or {}) do
       local d = L.items[id]
       if d then d.c = (d.c or 0) + (e.c or 0) else L.items[id] = e end
     end
-    S.lastGreenKill, S.lastBlueKill, S.longestDry, S.startKills, S.notable, S.items = nil, nil, nil, nil, nil, nil
+    S.lastGreenKill, S.lastBlueKill, S.lastCrateKill, S.longestDry, S.startKills, S.notable, S.items = nil, nil, nil, nil, nil, nil
   end
   for _, k in ipairs({ "realm", "created", "lastSeen", "level", "played", "levelStart" }) do src[k] = nil end
   fold(dst, src) -- stats, kills, zones, gathering, loot counts; names and class from the newer record
@@ -785,6 +794,19 @@ function FM:RecordCorpseLoot()
       local tally = L.items[key] or { n = name, q = quality, id = iid, c = 0 }
       tally.c = tally.c + qty
       L.items[key] = tally
+      -- Waylaid Crates and Craftsman's Writs: per mob and zone, so the Luck
+      -- page can show how often they drop
+      local kind = FM.CrateKind(name)
+      if kind then
+        bump(L.mobs, mob, kind, qty); bump(L.zones, zone, kind, qty)
+        if kind == "crates" then
+          local since = L.lastCrateKill and (c.stats.kills - L.lastCrateKill)
+          L.lastCrateKill = c.stats.kills
+          local link = (slotLink or name) .. (qty > 1 and (" x" .. qty) or "")
+          FM:Log("loot", ("|cffe8c27aCrate!|r %s"):format(link)
+            .. (since and ("  |cffa8977a%d kills since the last one|r"):format(since) or ""))
+        end
+      end
       if quality >= 2 then
         local field = quality >= 4 and "purples" or (quality == 3 and "blues" or "greens")
         bump(L.mobs, mob, field); bump(L.zones, zone, field)

@@ -1,4 +1,4 @@
-# Forever Metrics (v0.17.8)
+# Forever Metrics (v0.17.9)
 
 A RuneMetrics-style tracker for World of Warcraft: Forever. It keeps an activity feed and stats for every character, and you can swap between characters or view totals for your whole account.
 
@@ -42,7 +42,7 @@ A RuneMetrics-style tracker for World of Warcraft: Forever. It keeps an activity
   - **Chat**
   - **Quality of Life**
 
-The window title shows the installed version, like "Forever Metrics v0.17.8", and so does the "loaded" line in chat at login.
+The window title shows the installed version, like "Forever Metrics v0.17.9", and so does the "loaded" line in chat at login.
 
 `<` and `>` at the top right switch characters (including "All Characters") on pages that show one character's data. `/fm settings` opens straight to the Options pages.
 
@@ -57,6 +57,7 @@ The Activity section has three tabs:
 - **Feed**: everything that's happened, newest first. Blues and epics get a "RARE FIND!" tag.
 - **Loot log**: how many drops of each quality you've looted, cloth totals (linen, wool, silk...), and recent green-or-better finds with the mob, zone, and kill number they dropped on.
 - **Luck**: your drop rates (like "1 green per 42 kills"), kills since your last green and blue, your longest drought, your luckiest zones, your most-hunted mobs, and a log of every blue you've found.
+- **Waylaid Crates (v0.17.9)**: the Luck tab shows how many crates you've looted and how often ("1 per 431 kills"), counting ones looted before this version, plus Craftsman's Writs, the zones that dropped them, and kills since your last crate. Each crate also gets a feed line with the kills since the previous one.
 
 Loot tracking counts each corpse once and skips gathering nodes. From v0.16.1 it also tallies every item you loot by name, quality and count, so the stats page can list loot of every quality, poor and common included. It started with v0.4.0, so older kills don't count toward your rates.
 
@@ -171,6 +172,9 @@ Item tooltips with Attack Power get an extra blue line showing what that AP is w
 - Uses base ratios, before talents and buffs. Conditional AP (vs Undead/Demons, feral forms only) is skipped so it doesn't overstate an item.
 - Hunters also see ranged AP converted to Agility.
 - `/fm ap` turns it on or off, and `/fm ap total` toggles the total line. The old `/ap2s` command still works. Both toggles are also under Options > Tooltips.
+
+## Skinning on tooltips (new in v0.17.9)
+With Skinning, hovering a beast (alive or dead) or a corpse marked "Skinnable" adds the skill it needs against yours, and the highest level you can skin: "Skinning 120 needed · you 112 (up to lvl 22)". Green means you can skin it, red means you can't yet. It uses Classic's rule (up to level 10 needs 1, levels 11-20 need (level - 10) x 10, above that level x 5), which Forever is assumed to share. Turn it off under Options > Tooltips.
 
 ## Settings
 Every toggle lives under **Options** in the side menu, and `/fm settings` jumps straight there. Each page has a short note at the bottom. Any new settings group added in Core.lua gets its own page automatically.

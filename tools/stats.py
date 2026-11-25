@@ -297,6 +297,9 @@ def build_char(key, c, trainers=None):
                          key=lambda x: -x["rank"]),
         "gathering": gathering,
         "loot": {"q": {int(k): v for k, v in q.items()}, "cloth": top(loot.get("cloth"), 6), "notable": notable[-40:],
+                 "crates": sum(as_dict(v).get("c", 0) for v in as_map(loot.get("items")).values()
+                               if str(as_dict(v).get("n") or "").startswith("Waylaid Crate")),
+                 "tracked": s.get("kills", 0) - loot.get("startKills", 0),
                  "items": sorted(({"name": as_dict(v).get("n"), "id": as_dict(v).get("id"), "q": as_dict(v).get("q"),
                                    "c": as_dict(v).get("c", 0)} for v in as_dict(loot.get("items")).values()),
                                  key=lambda x: (-(x["c"] or 0), x["name"] or "")),

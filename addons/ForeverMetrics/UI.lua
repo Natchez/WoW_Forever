@@ -170,7 +170,7 @@ end
 -- Merge loot data across the characters in view
 local function mergeLoot(chars)
   local m = { q = {}, cloth = {}, mobs = {}, zones = {}, notable = {}, kills = 0,
-              dry = {}, longest = 0, blueDry = {} }
+              dry = {}, longest = 0, blueDry = {}, crates = 0, writs = 0, crateDry = {} }
   for _, c in ipairs(chars) do
     if FM.EnsureLoot then FM.EnsureLoot(c) end
     local L = c.loot
@@ -182,10 +182,17 @@ local function mergeLoot(chars)
         local d = m[src][k] or { kills = 0, greens = 0, blues = 0, purples = 0 }
         d.kills = d.kills + (e.kills or 0); d.greens = d.greens + (e.greens or 0)
         d.blues = d.blues + (e.blues or 0); d.purples = d.purples + (e.purples or 0)
+        d.crates = (d.crates or 0) + (e.crates or 0)
         m[src][k] = d
       end
     end
     for _, n in ipairs(L.notable) do m.notable[#m.notable + 1] = { n = n, c = c } end
+    -- crates and writs from the item tally (counts ones looted before v0.17.9 too)
+    for _, it in pairs(L.items or {}) do
+      local kind = FM.CrateKind and FM.CrateKind(it.n)
+      if kind then m[kind] = m[kind] + (it.c or 0) end
+    end
+    if L.lastCrateKill then m.crateDry[#m.crateDry + 1] = { c = c, n = c.stats.kills - L.lastCrateKill } end
     m.dry[#m.dry + 1] = { c = c, n = c.stats.kills - L.lastGreenKill }
     m.blueDry[#m.blueDry + 1] = { c = c, n = c.stats.kills - L.lastBlueKill }
     m.longest = math.max(m.longest, L.longestDry, c.stats.kills - L.lastGreenKill)
@@ -245,11 +252,29 @@ function R.Luck(chars)
     out[#out + 1] = ("  %s: %s  |cffa8977a(%s)|r\n"):format(qcolor(4, "Epics"), commas(purples), rate(purples, m.kills))
   end
 
+  out[#out + 1] = ("  |cffe8c27aWaylaid Crates|r: %s  |cffa8977a(%s)|r\n"):format(commas(m.crates), rate(m.crates, m.kills))
+  if m.writs > 0 then
+    out[#out + 1] = ("  |cffe8c27aCraftsman's Writs|r: %s  |cffa8977a(%s)|r\n"):format(commas(m.writs), rate(m.writs, m.kills))
+  end
+  -- crates by zone (counted per zone from v0.17.9), dungeons vs the world
+  local cz = {}
+  for z, e in pairs(m.zones) do
+    if (e.crates or 0) > 0 then cz[#cz + 1] = { z = z, n = e.crates, k = e.kills } end
+  end
+  table.sort(cz, function(a, b) return a.k / a.n < b.k / b.n end)
+  for i = 1, math.min(#cz, 5) do
+    out[#out + 1] = ("    |cffa8977a%s: %d in %s kills (%s)|r\n"):format(cz[i].z, cz[i].n, commas(cz[i].k), rate(cz[i].n, cz[i].k))
+  end
+
   out[#out + 1] = "\n" .. hdr("Dry streaks")
   for i, d in ipairs(m.dry) do
     local who = #chars > 1 and (colorName(d.c) .. ": ") or ""
     out[#out + 1] = ("  %s%s kills since a green  ·  %s since a blue\n"):format(
       who, commas(d.n), commas(m.blueDry[i].n))
+  end
+  for _, d in ipairs(m.crateDry) do
+    local who = #chars > 1 and (colorName(d.c) .. ": ") or ""
+    out[#out + 1] = ("  %s%s kills since a crate\n"):format(who, commas(d.n))
   end
   out[#out + 1] = ("  |cffa8977aLongest green drought: %s kills|r\n"):format(commas(m.longest))
 

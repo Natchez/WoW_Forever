@@ -889,6 +889,8 @@ SlashCmdList.FOREVERMETRICS = function(arg)
     if FM.APCommand then FM:APCommand(rest) end
   elseif cmd == "talents" or cmd == "talent" then
     if FM.TalentsCommand then FM:TalentsCommand(rest) end
+  elseif cmd == "stats" then
+    if FM.StatsCommand then FM:StatsCommand(rest) end
   elseif cmd == "minimap" then
     if FM.MinimapCommand then FM:MinimapCommand(rest) end
   elseif cmd == "threat" then

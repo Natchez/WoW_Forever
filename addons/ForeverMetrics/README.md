@@ -1,4 +1,4 @@
-# Forever Metrics (v0.17.12)
+# Forever Metrics (v0.17.13)
 
 A RuneMetrics-style tracker for World of Warcraft: Forever. It keeps an activity feed and stats for every character, and you can swap between characters or view totals for your whole account.
 
@@ -17,6 +17,7 @@ A RuneMetrics-style tracker for World of Warcraft: Forever. It keeps an activity
 - `/fm feed lines 5`, `/fm feed hold 60`, `/fm feed scale 1.2` set how many lines stay on screen together, how many seconds the feed stays after the last new entry before fading out, and its size
 - `/fm feed test` shows a sample entry and prints whether the feed is on, visible, and on screen. `/fm feed reset` puts it back in its default spot.
 - `/fm move` unlocks the feed for dragging without Edit Mode (run it again to lock)
+- `/fm stats test` (temporary, v0.17.13) prints which stats pane this client uses, whether addons can add rows to it, and what each stat function returns (hit, weapon skill, armor, spell power, item level...). Run it with the character window open and a mob targeted.
 - `/fm minimap test` (temporary, v0.17.3) lists every minimap tracking option the game offers addons, to check whether Forever can track vendors, repair and trainers on the minimap.
 - `/fm threat test` (temporary, v0.16.9) prints what the game's threat functions return for your target, for you, your pet and your party, and marks any value the game hides from addons as SECRET. `/fm threat watch` (from v0.16.10) puts one compact line in the on-screen feed whenever threat changes while you fight, like `[T] Kolkar Wrangler: Kil'hala 100% tank · You 72% · Lindabelcher secret`, and a count of threat events after each fight. These lines aren't saved to your activity history. With the feed turned off they go to chat. This is to check whether a threat meter can work on Forever.
 
@@ -42,7 +43,7 @@ A RuneMetrics-style tracker for World of Warcraft: Forever. It keeps an activity
   - **Chat**
   - **Quality of Life**
 
-The window title shows the installed version, like "Forever Metrics v0.17.12", and so does the "loaded" line in chat at login.
+The window title shows the installed version, like "Forever Metrics v0.17.13", and so does the "loaded" line in chat at login.
 
 `<` and `>` at the top right switch characters (including "All Characters") on pages that show one character's data. `/fm settings` opens straight to the Options pages.
 

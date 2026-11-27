@@ -1,4 +1,4 @@
-# Forever Metrics (v0.17.13)
+# Forever Metrics (v0.17.14)
 
 A RuneMetrics-style tracker for World of Warcraft: Forever. It keeps an activity feed and stats for every character, and you can swap between characters or view totals for your whole account.
 
@@ -43,7 +43,7 @@ A RuneMetrics-style tracker for World of Warcraft: Forever. It keeps an activity
   - **Chat**
   - **Quality of Life**
 
-The window title shows the installed version, like "Forever Metrics v0.17.13", and so does the "loaded" line in chat at login.
+The window title shows the installed version, like "Forever Metrics v0.17.14", and so does the "loaded" line in chat at login.
 
 `<` and `>` at the top right switch characters (including "All Characters") on pages that show one character's data. `/fm settings` opens straight to the Options pages.
 
@@ -173,6 +173,18 @@ Item tooltips with Attack Power get an extra blue line showing what that AP is w
 - Uses base ratios, before talents and buffs. Conditional AP (vs Undead/Demons, feral forms only) is skipped so it doesn't overstate an item.
 - Hunters also see ranged AP converted to Agility.
 - `/fm ap` turns it on or off, and `/fm ap total` toggles the total line. The old `/ap2s` command still works. Both toggles are also under Options > Tooltips.
+
+## Character stats (new in v0.17.14)
+Extra rows inside Blizzard's own character stats pane (C), each with a hover tooltip:
+
+- **Armor reduction** (under Armor): how much physical damage your armor stops against your target, a boss three levels above you, and level 60.
+- **Weapon skill** (melee): main and off hand against your level's cap ("115 · 108 / 120"); the tooltip adds your ranged skill and how far each is from the cap.
+- **Hit**: your hit against what you need to never miss special attacks on a boss ("0% / 10%"), plus the dual-wield white-hit cap.
+- **Miss vs target**: your special-attack miss chance against your target (or a boss with no target), with white-hit miss, dodge and glancing in the tooltip. It updates when you change target.
+- **Spell hit** (mages, priests, warlocks) against the 16% boss cap, instead of the melee rows.
+- **Item level** and **Durability** (the tooltip names your most worn piece) with health and movement speed.
+
+Miss, dodge and glancing are estimates from Classic's hit tables. Switch rows on or off under Options > Character.
 
 ## Gathering skill on tooltips (new in v0.17.9)
 Hover a beast (alive or dead), a corpse marked "Skinnable", a mining node or an herb and the tooltip adds the skill it needs against yours (needed/yours): **S(120/112)** for Skinning, **M(65/40)** for Mining, **H(70/50)** for Herbalism. Green means you can gather it, red means you can't yet. On a character without that skill it shows just what's needed, in gold: **S(120)**. Skinning uses Classic's rule (up to level 10 needs 1, levels 11-20 need (level - 10) x 10, above that level x 5) and nodes use Classic's skill table, which Forever is assumed to share. Turn it off under Options > Tooltips.
